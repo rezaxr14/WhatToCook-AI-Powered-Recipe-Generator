@@ -1,3 +1,8 @@
 from django.contrib import admin
+from .models import Recipe, UserPantry, Ingredient
 
-# Register your models here.
+for model in (Recipe, UserPantry, Ingredient):
+    try:
+        admin.site.register(model)
+    except admin.sites.AlreadyRegistered:
+        pass

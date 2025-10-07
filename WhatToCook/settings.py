@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -75,10 +76,15 @@ WSGI_APPLICATION = 'WhatToCook.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("POSTGRES_DB", "whattocook"),
+        "USER": os.environ.get("POSTGRES_USER", "whattocook"),
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "secret"),
+        "HOST": os.environ.get("DB_HOST", "db"),   # "db" = service name in docker-compose
+        "PORT": os.environ.get("DB_PORT", "5432"),
     }
 }
 
@@ -123,3 +129,18 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Redirects after login/logout
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
+
+
+SESSION_COOKIE_SECURE = False  # True only if using HTTPS
+CSRF_COOKIE_SECURE = False     # True only if using HTTPS
+
+LMSTUDIO_URL = "http://host.docker.internal:1234/v1/chat/completions"
+MODEL_NAME = 'llama-3.2-3b-instruct'

@@ -1,0 +1,60 @@
+{% extends "GetFood/layout.html" %}
+{% block title %}AI Chef Suggestions{% endblock %}
+
+{% block content %}
+    <h1 class="text-3xl font-bold text-orange-700 mb-6">🍳 AI Chef Suggestions</h1>
+
+    <div id="loading" class="text-gray-600">Generating ideas… please wait ⏳</div>
+    <div id="recipes-container" class="hidden"></div>
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            const container = document.getElementById("recipes-container");
+            const loading = document.getElementById("loading");
+
+            async function fetchRecipes(retryCount = 3, delay = 2000) {
+                try {
+                    const response = await fetch("{% url 'ai_suggestions_api' %}");
+                    const data = await response.json();
+
+                    if (data.error) throw new Error(data.error);
+
+                    // Hide loading and show recipes
+                    loading.style.display = "none";
+                    container.classList.remove("hidden");
+
+                    container.innerHTML = `
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    ${data.recipes.map(r => `
+                        <a href="/ai/recipe/${encodeURIComponent(r.name)}/"
+                            class="block bg-white rounded-2xl shadow-lg hover:shadow-2xl transition p-4">
+                            <img src="${r.image}" alt="${r.name}" class="rounded-xl mb-4 h-40 w-full object-cover">
+                            <h3 class="text-lg font-bold text-orange-700">${r.name}</h3>
+                            <p class="text-gray-600">${r.short_description}</p>
+                            <div class="mt-2 text-sm text-gray-500">
+                                <span>🍽 Cuisine: ${r.cuisine} | ⚙️ Difficulty: ${r.difficulty}</span>
+                            </div>
+                        </a>
+                    `).join("")}
+                </div>
+            `;
+                } catch (err) {
+                    if (retryCount > 0) {
+                        loading.textContent = `Retrying... (${retryCount})`;
+                        setTimeout(() => fetchRecipes(retryCount - 1, delay), delay);
+                    } else {
+                        loading.innerHTML = `
+                    <p class="text-red-500">Failed to load recipes: ${err.message}</p>
+                    <button id="retry-btn" class="mt-2 bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600">
+                        Retry
+                    </button>
+                `;
+                        document.getElementById("retry-btn").addEventListener("click", () => fetchRecipes(3, delay));
+                    }
+                }
+            }
+
+            await fetchRecipes();
+        });
+    </script>
+
+{% endblock %}
