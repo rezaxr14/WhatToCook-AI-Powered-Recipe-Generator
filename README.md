@@ -33,6 +33,79 @@ Distinct features include:
 The combination of **AI-based JSON parsing, caching, user interactivity, and live Django data persistence** results in a significantly more complex and technically deep project than other examples like social networks or e-commerce.
 
 
+
+## 🧩 Project Structure & File Descriptions
+
+### Root Directory
+
+* **Dockerfile** – Defines how the Django app container is built (Python setup, dependencies, commands).
+* **docker-compose.yml** – Orchestrates multiple containers (Django app, Redis, Celery worker).
+* **manage.py** – Django’s command-line utility for running the server, migrations, etc.
+* **requirements.txt** – Lists all Python dependencies needed for the project.
+* **README.md** – Documentation file describing the project setup and usage.
+* **.env** – Stores environment variables (API keys, model names, secrets).
+
+---
+
+### 📦 WhatToCook (Main Django Project)
+
+* ****init**.py** – Marks this directory as a Python package.
+* **asgi.py** – ASGI configuration for async web server deployment.
+* **wsgi.py** – WSGI configuration for production servers (like Gunicorn).
+* **urls.py** – Main URL router for the entire Django project.
+* **settings.py** – Core configuration file (databases, installed apps, static files, Celery setup).
+* **celery.py** – Configures Celery to work with Django and Redis for background tasks.
+
+---
+
+### 🍲 GetFood (Main App inside WhatToCook)
+
+* **admin.py** – Registers models for Django’s admin interface.
+* **apps.py** – Configuration for the GetFood Django app.
+* **models.py** – Defines database models like Recipe, Ingredient, Pantry, etc.
+* **serializers.py** – Converts model instances to JSON for API responses.
+* **urls.py** – App-specific URL routes (e.g., `/recipes/`, `/ai_suggestions/`).
+* **views.py** – Handles HTTP requests and responses (main logic for each page).
+* **tasks.py** – Celery background tasks (AI API calls, caching, etc.).
+* **utils.py** – Helper functions (e.g., image processing, JSON parsing).
+* **tests.py** – Unit and integration tests for app functionality.
+
+---
+
+### 🧠 Templates (Frontend HTML Files)
+
+Located at: `GetFood/templates/GetFood/`
+
+* **layout.html** – Base template containing the navbar, styles, and layout.
+* **index.html** – Homepage showing recipe categories and featured items.
+* **login.html / signup.html** – Authentication pages with styled form borders.
+* **pantry.html** – Page where users can manage ingredients they own.
+* **can_cook.html** – Displays recipes the user can cook based on pantry items.
+* **ai_suggestions.html** – Shows AI-generated recipe ideas fetched asynchronously.
+* **ai_recipe_detail.html / recipe_detail.html** – Detailed recipe view (manual or AI-generated).
+
+---
+
+### 🧰 Management Commands
+
+Located at: `GetFood/management/commands/`
+
+* **seed_data.py** – Custom Django command to prefill the database with sample recipes and ingredients.
+
+---
+
+### 🗂 Media Folder
+
+* **recipes/** – Stores uploaded or AI-generated recipe images.
+* **seed_images/** – Preloaded example images for seeding data.
+* **readme_images/** – Screenshots used in documentation.
+
+---
+
+### 🧪 Tests
+
+* **tests/** – Contains organized test cases for models, APIs, and AI logic.
+
 ---
 
 ## ⚙️ How to Run the Application
