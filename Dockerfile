@@ -11,7 +11,6 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Ollama client deps (optional if needed)
 RUN pip install requests
 
 # Copy requirements first (for caching)

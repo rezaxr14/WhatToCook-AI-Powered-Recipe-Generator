@@ -23,4 +23,6 @@ urlpatterns = [
     path("ai/recipe/<str:name>/", views.ai_recipe_detail, name="ai_recipe_detail"),
     path("ai/suggestions/api/", views.ai_suggestions_api, name="ai_suggestions_api"),
     path("ai/recipe/<str:recipe_name>/api/", views.ai_recipe_detail_api, name="ai_recipe_detail_api"),
+    path("ai/task-status/<str:task_id>/", views.ai_task_status, name="ai_task_status"),
+
 ]

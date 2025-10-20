@@ -142,5 +142,14 @@ LOGOUT_REDIRECT_URL = '/'
 SESSION_COOKIE_SECURE = False  # True only if using HTTPS
 CSRF_COOKIE_SECURE = False     # True only if using HTTPS
 
-LMSTUDIO_URL = "http://host.docker.internal:1234/v1/chat/completions"
-MODEL_NAME = 'llama-3.2-3b-instruct'
+LMSTUDIO_URL = os.getenv("LMSTUDIO_URL", "http://host.docker.internal:1234/v1/chat/completions")
+MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.2-3b-instruct")
+
+
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+

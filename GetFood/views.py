@@ -1,32 +1,15 @@
-import json
-import os
-import re
-import subprocess
-from datetime import timedelta
-
-import requests
+from django.conf import settings
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
-from django.http import JsonResponse
-from django.shortcuts import render, reverse, get_object_or_404, redirect
+from django.shortcuts import get_object_or_404
+from django.shortcuts import render, redirect
 from rest_framework import viewsets
+
 from .models import Ingredient, Recipe, UserPantry
 from .serializers import IngredientSerializer, RecipeSerializer, UserPantrySerializer
-from django.shortcuts import render, redirect
-from django.contrib.auth import login, authenticate
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-
-
-import json
-from django.http import JsonResponse
-import requests
-
-
-from django.views.decorators.http import require_GET
-from django.conf import settings
-from django.utils import timezone
-import hashlib
-from .models import AISuggestionCache
+from .utils import find_best_image
 
 LMSTUDIO_URL = settings.LMSTUDIO_URL
 MODEL_NAME = settings.MODEL_NAME
@@ -51,7 +34,7 @@ class UserPantryViewSet(viewsets.ModelViewSet):
 def index(request):
     recipes = Recipe.objects.all()
     ingredients = Ingredient.objects.all()
-    user_pantry = UserPantry.objects.first()  # Example: first user's pantry
+    user_pantry = UserPantry.objects.first()
 
     page = request.GET.get('page', 1)  # Get page number from query params, default 1
     paginator = Paginator(recipes, 6)
@@ -189,71 +172,88 @@ def ai_recipe_detail(request, name):
     return render(request, "GetFood/ai_recipe_detail.html", {"recipe_name": name})
 
 
+import hashlib, json, requests
+from datetime import timedelta
+from django.utils import timezone
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+
+from .models import AISuggestionCache, UserPantry
+from .tasks import generate_ai_suggestions_task  # new celery task
+
+
 @login_required
 def ai_suggestions_api(request):
+    """
+    Return cached suggestions if available; otherwise enqueue a Celery task
+    and return a task_id. Frontend will poll task status endpoint.
+    """
     user = request.user
     try:
         pantry = UserPantry.objects.get(user=user)
     except UserPantry.DoesNotExist:
-        return JsonResponse({"error": "Your pantry is empty! Add ingredients first."})
+        return JsonResponse({"error": "Your pantry is empty! Add ingredients first."}, status=400)
 
     ingredients = [i.name for i in pantry.ingredients.all()]
+    if not ingredients:
+        return JsonResponse({"error": "Your pantry is empty! Add ingredients first."}, status=400)
+
     ingredients_str = ', '.join(sorted(ingredients))
     ingredients_hash = hashlib.sha256(ingredients_str.encode()).hexdigest()
+
+    # check cache (24h)
     cache_entry = AISuggestionCache.objects.filter(
         ingredients_hash=ingredients_hash,
         created_at__gte=timezone.now() - timedelta(days=1)
     ).first()
+
     if cache_entry:
-        return JsonResponse({"recipes": cache_entry.ai_response}, safe=False)
-    prompt = (
-        f"You are a creative chef. Based on these ingredients: {ingredients_str}, "
-        "suggest 5 unique, realistic dishes I can cook. "
-        "Return ONLY valid JSON with a top-level array called 'dishes'. "
-        "Each dish must have keys: name, short_description, cuisine, difficulty, image_hint. "
-        "Return raw JSON, no markdown or code fences."
-    )
+        # If cached response is an error dict, return error
+        if isinstance(cache_entry.ai_response, dict) and cache_entry.ai_response.get("error"):
+            return JsonResponse({"error": cache_entry.ai_response.get("error")}, status=500)
+        return JsonResponse({"recipes": cache_entry.ai_response})
+
+    # Not cached: enqueue background task
+    task = generate_ai_suggestions_task.delay(ingredients, ingredients_hash)
+
+    return JsonResponse({"status": "processing", "task_id": task.id})
+
+
+from celery.result import AsyncResult
+from django.views.decorators.http import require_GET
+
+
+@require_GET
+@login_required
+def ai_task_status(request, task_id):
+    """
+    Poll this endpoint from the frontend to check if the async Celery task finished.
+    When finished, read the AISuggestionCache (by ingredients_hash) and return recipes.
+    We return either {"status":"pending"} or {"status":"done", "recipes": [...]}
+    """
+    # Check task state
+    res = AsyncResult(task_id)
+    if not res.ready():
+        return JsonResponse({"status": "pending"})
 
     try:
-        response = requests.post(
-            LMSTUDIO_URL,
-            headers={"Content-Type": "application/json"},
-            json={"model": MODEL_NAME, "messages": [{"role": "user", "content": prompt}], "temperature": 0.7},
-            timeout=240,
-        )
-        response.raise_for_status()
-        data = response.json()
-        content = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        user = request.user
+        pantry = UserPantry.objects.get(user=user)
+        ingredients = [i.name for i in pantry.ingredients.all()]
+        ingredients_str = ", ".join(sorted(ingredients))
+        ingredients_hash = hashlib.sha256(ingredients_str.encode()).hexdigest()
 
-        # Remove newlines for safer parsing
-        content = content.replace("\n", "")
-
-        # Extract all {...} objects inside the string
-        matches = re.findall(r'\{.*?\}', content)
-        recipes = []
-        for m in matches:
-            try:
-                obj = json.loads(m)
-                if "name" in obj:
-                    recipes.append(obj)
-                elif "dishes" in obj:
-                    # sometimes AI wraps single recipe in "dishes" key
-                    recipes.extend(obj["dishes"])
-            except json.JSONDecodeError:
-                continue
-        for r in recipes:
-            r['image'] = find_best_image(r["name"])
-
-        AISuggestionCache.objects.create(
+        cache_entry = AISuggestionCache.objects.filter(
             ingredients_hash=ingredients_hash,
-            ai_response=recipes
-        )
-    except Exception as e:
-        return JsonResponse(
-            {"error": f"Failed to parse AI response: {e}", "raw_response": content if 'content' in locals() else None},
-            status=500,
-        )
-    return JsonResponse({"recipes": recipes})
+            created_at__gte=timezone.now() - timedelta(minutes=10)
+        ).first()
+
+        if cache_entry:
+            return JsonResponse({"status": "done", "recipes": cache_entry.ai_response})
+        else:
+            return JsonResponse({"status": "done", "recipes": []})
+    except UserPantry.DoesNotExist:
+        return JsonResponse({"status": "done", "recipes": []})
 
 
 @require_GET
@@ -300,73 +300,3 @@ def ai_recipe_detail_api(request, recipe_name):
 
     except Exception as e:
         return JsonResponse({"error": f"Error fetching recipe details: {e}"})
-
-
-recipe_names = ["Spaghetti Bolognese",
-                "Pancakes",
-                "Chicken Fried Rice"
-                "Chocolate Cake",
-                "Caesar Salad",
-                "Garlic Bread",
-                "Mashed Potatoes",
-                "Omelette",
-                "Grilled Chicken",
-                "Beef Stew",
-                "Fish Tacos",
-                "Vegetable Stir Fry"
-                "Shrimp Alfredo Pasta"
-                "Mushroom Risotto",
-                "Greek Salad",
-                "Lentil Soup",
-                "Stuffed Peppers",
-                ]
-recipe_image_locations = [
-    "spaghetti.jpg",
-    "Pancakes.jpg",
-    "Chicken.jpg",
-    "Chocolate.jpg",
-    "Caesar.jpg",
-    "Garlic.jpg",
-    "potatoes.jpg",
-    "Omelette.jpg",
-    "grilled.jpg",
-    "beef.jpg",
-    "Fish_Tacos.jpeg",
-    "stir_fry.jpeg",
-    "shrimp_alfredo.jpeg",
-    "risotto.jpeg",
-    "greek_salad.jpeg",
-    "lentil_soup.jpeg",
-    "stuffed_peppers.jpeg",
-]
-
-recipe_image_map = dict(zip(
-    [name.lower() for name in recipe_names],  # lowercase for case-insensitive matching
-    recipe_image_locations
-))
-
-import difflib
-
-
-def find_best_image(recipe_name: str) -> str:
-    """
-    Returns the best matching image for a recipe name.
-    Matches on any word in the name or uses fuzzy matching.
-    """
-    name_lower = recipe_name.lower()
-    words = name_lower.split()
-
-    # 1️⃣ Check if any word matches a seed recipe
-    for seed_name in recipe_image_map.keys():
-        seed_words = seed_name.split()
-        if any(word in seed_words for word in words):
-            return f"/media/recipes/{recipe_image_map[seed_name]}"
-
-    # 2️⃣ Fuzzy match as a fallback
-    close_matches = difflib.get_close_matches(name_lower, recipe_image_map.keys(), n=1, cutoff=0.5)
-    if close_matches:
-        best_match = close_matches[0]
-        return f"/media/recipes/{recipe_image_map[best_match]}"
-
-    # 3️⃣ Default image
-    return "/media/recipes/default.jpg"
