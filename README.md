@@ -115,7 +115,7 @@ Located at: `GetFood/management/commands/`
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/rezaxr14/whattocook.git
+   git clone https://github.com/rezaxr14/WhatToCook-AI-Powered-Recipe-Generator.git
    cd whattocook
    ```
 
