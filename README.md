@@ -2,7 +2,7 @@
 
 **Author:** *Reza Nadmi*
 
-**🎥 Project Demo:** [![WhatToCook — Intelligent Recipe Assistant]](https://www.youtube.com/watch?v=bEDYRpNFxOQ)
+**🎥 Project Demo:** [![WhatToCook — Intelligent Recipe Assistant](https://img.youtube.com/vi/bEDYRpNFxOQ/0.jpg)](https://youtu.be/bEDYRpNFxOQ)
 
 **🖼️ Screenshots:**
 
