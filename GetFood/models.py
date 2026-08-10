@@ -1,4 +1,5 @@
 from datetime import timedelta
+import secrets
 
 from django.db import models
 from django.contrib.auth.models import User
@@ -55,9 +56,51 @@ class AISuggestionCache(models.Model):
         return f"Cache for {self.ingredients_hash}"
 
 
+class TelegramAccountLink(models.Model):
+    """Links WhatToCook web user account to Telegram chat."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="telegram_link")
+    telegram_chat_id = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    telegram_username = models.CharField(max_length=128, null=True, blank=True)
+    auth_token = models.CharField(max_length=64, unique=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @classmethod
+    def generate_token_for_user(cls, user):
+        link, created = cls.objects.get_or_create(
+            user=user,
+            defaults={"auth_token": secrets.token_urlsafe(16)}
+        )
+        if not link.auth_token:
+            link.auth_token = secrets.token_urlsafe(16)
+            link.save()
+        return link
+
+    def __str__(self):
+        return f"{self.user.username} (TG: {self.telegram_chat_id or 'Pending'})"
+
+
+class ShoppingListItem(models.Model):
+    """Stores user grocery shopping items with checked state, category, and recipe origin."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="shopping_items", null=True, blank=True)
+    session_key = models.CharField(max_length=64, blank=True, default="")
+    name = models.CharField(max_length=150)
+    category = models.CharField(max_length=100, default="General", blank=True)
+    quantity = models.CharField(max_length=100, default="1 item", blank=True)
+    checked = models.BooleanField(default=False)
+    added_from = models.CharField(max_length=150, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["checked", "-created_at"]
+
+    def __str__(self):
+        return f"{self.name} ({'✓' if self.checked else '○'})"
+
+
 @receiver(post_save, sender=AISuggestionCache)
 def clean_expired_ai_caches(sender, **kwargs):
-    """Delete AI suggestions older than 1 day."""
+    """Delete AI suggestions older than 3 days."""
     expiry_time = timezone.now() - timedelta(days=3)
     AISuggestionCache.objects.filter(created_at__lt=expiry_time).delete()
 

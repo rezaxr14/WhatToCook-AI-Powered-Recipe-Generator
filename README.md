@@ -1,199 +1,113 @@
-# 🍳 WhatToCook — Intelligent Recipe Assistant
+# 🍳 WhatToCook — AI-Powered Intelligent Recipe Studio & Smart Pantry
 
-**Author:** *Reza Nadmi*
+> **Zero Food Waste AI Recipe Engine**, visual camera ingredient scanner powered by **Generative AI**, real-time culinary generation streaming, interactive Telegram bot assistant, smart grocery lists with 1-click WhatsApp & Telegram exports, dynamic portion scaling, and an offline Progressive Web App (PWA).
 
-**🎥 Project Demo:** [![WhatToCook — Intelligent Recipe Assistant](https://img.youtube.com/vi/2WaqNnC3ZuM/hqdefault.jpg)](https://www.youtube.com/watch?v=2WaqNnC3ZuM)
-
-**🖼️ Screenshots:**
-
-* *Screenshot 1: Homepage* ![Homepage](/media/readme_images/homepage.png)
-* *Screenshot 2: AI Recipe Suggestions*![AI Recipe Suggestions](/media/readme_images/AI%20Recipe%20Suggestions.png)
-* *Screenshot 3: Pantry Management*![Homepage](/media/readme_images/Pantry%20Management.png)
-* *Screenshot 4: Recipe Details Page*![Homepage](/media/readme_images/Recipe%20Details%20Page.png)
+[![Django 5.2](https://img.shields.io/badge/Django-5.2-092E20?style=for-the-badge&logo=django&logoColor=white)](https://djangoproject.com/)
+[![React 18](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-6.0-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Docker Alpine](https://img.shields.io/badge/Docker-Alpine_Lean-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com/)
 
 ---
 
-## 🧩 Distinctiveness and Complexity
+## 🌟 Architecture & Key Features
 
-**WhatToCook** is a full-stack intelligent recipe recommendation web application built with **Django**, **JavaScript (fetch + dynamic DOM rendering)**, and a **PostgreSQL** database, fully containerized using **Docker**.
-
-It goes far beyond standard CRUD web apps or course examples like CS50W’s Commerce or Network projects. Instead of serving static content or simple transactions, this app integrates a **live AI suggestion engine** that dynamically generates personalized recipe ideas based on the user’s pantry ingredients, stored in the database and cached for later use.
-
-Distinct features include:
-
-* 🧠 **AI-driven recipe generation** using a connected LLM API (Llama model hosted locally via LM Studio).
-* ⚙️ **Dynamic caching of AI responses** (with a database hash system ensuring users see the same results upon return, avoiding redundant API calls).
-* 🥕 **User pantry system** — users can add and remove ingredients, and AI suggestions are built dynamically from these ingredients.
-* 🧾 **Interactive front-end** — uses async JavaScript fetch requests, JSON APIs, and graceful fallback/retry for failed responses.
-* 💾 **Persistent backend** with PostgreSQL, connected via Docker Compose.
-* 📱 **Responsive layout** built using Tailwind CSS, making the app mobile-friendly and modern.
-* 🔁 **Temporary AI cache database** and automatic cleanup of expired entries through Django signals.
-* ⚡ **Pagination, detailed views, and API modularity** with Django REST Framework.
-
-The combination of **AI-based JSON parsing, caching, user interactivity, and live Django data persistence** results in a significantly more complex and technically deep project than other examples like social networks or e-commerce.
-
-
-
-## 🧩 Project Structure & File Descriptions
-
-### Root Directory
-
-* **Dockerfile** – Defines how the Django app container is built (Python setup, dependencies, commands).
-* **docker-compose.yml** – Orchestrates multiple containers (Django app, Redis, Celery worker).
-* **manage.py** – Django’s command-line utility for running the server, migrations, etc.
-* **requirements.txt** – Lists all Python dependencies needed for the project.
-* **README.md** – Documentation file describing the project setup and usage.
-* **.env** – Stores environment variables (API keys, model names, secrets).
-
----
-
-### 📦 WhatToCook (Main Django Project)
-
-* ****init**.py** – Marks this directory as a Python package.
-* **asgi.py** – ASGI configuration for async web server deployment.
-* **wsgi.py** – WSGI configuration for production servers (like Gunicorn).
-* **urls.py** – Main URL router for the entire Django project.
-* **settings.py** – Core configuration file (databases, installed apps, static files, Celery setup).
-* **celery.py** – Configures Celery to work with Django and Redis for background tasks.
-
----
-
-### 🍲 GetFood (Main App inside WhatToCook)
-
-* **admin.py** – Registers models for Django’s admin interface.
-* **apps.py** – Configuration for the GetFood Django app.
-* **models.py** – Defines database models like Recipe, Ingredient, Pantry, etc.
-* **serializers.py** – Converts model instances to JSON for API responses.
-* **urls.py** – App-specific URL routes (e.g., `/recipes/`, `/ai_suggestions/`).
-* **views.py** – Handles HTTP requests and responses (main logic for each page).
-* **tasks.py** – Celery background tasks (AI API calls, caching, etc.).
-* **utils.py** – Helper functions (e.g., image processing, JSON parsing).
-* **tests.py** – Unit and integration tests for app functionality.
-
----
-
-### 🧠 Templates (Frontend HTML Files)
-
-Located at: `GetFood/templates/GetFood/`
-
-* **layout.html** – Base template containing the navbar, styles, and layout.
-* **index.html** – Homepage showing recipe categories and featured items.
-* **login.html / signup.html** – Authentication pages with styled form borders.
-* **pantry.html** – Page where users can manage ingredients they own.
-* **can_cook.html** – Displays recipes the user can cook based on pantry items.
-* **ai_suggestions.html** – Shows AI-generated recipe ideas fetched asynchronously.
-* **ai_recipe_detail.html / recipe_detail.html** – Detailed recipe view (manual or AI-generated).
-
----
-
-### 🧰 Management Commands
-
-Located at: `GetFood/management/commands/`
-
-* **seed_data.py** – Custom Django command to prefill the database with sample recipes and ingredients.
-
----
-
-### 🗂 Media Folder
-
-* **recipes/** – Stores uploaded or AI-generated recipe images.
-* **seed_images/** – Preloaded example images for seeding data.
-* **readme_images/** – Screenshots used in documentation.
-
----
-
-### 🧪 Tests
-
-* **tests/** – Contains organized test cases for models, APIs, and AI logic.
-
----
-
-## ⚙️ How to Run the Application
-
-### 🐳 Run with Docker Compose
-
-1. **Clone the repository:**
-
-   ```bash
-   git clone https://github.com/rezaxr14/WhatToCook-AI-Powered-Recipe-Generator.git
-   cd whattocook
-   ```
-
-2. **Build and start containers:**
-
-   ```bash
-   docker compose up -d
-   ```
-3. **Migrate the databases:**
-
-   ```
-    docker compose run web python manage.py migrate
-   ```
-
-4. **Seed initial data:**
-
-   ```bash
-   docker compose run web python manage.py seed_data
-   ```
-
-5. **Access the app:**
-   Visit [http://localhost:9000](http://localhost:9000)
-
----
-
-## 🧠 AI Functionality
-
-When users visit the AI Suggestions page, the system:
-
-1. Reads the user’s pantry ingredients.
-2. Generates a hash from the ingredient list to check the cache.
-3. If cached data exists (within 24h), returns it immediately.
-4. Otherwise, it sends the ingredient list to a **local Llama model** hosted via LM Studio.
-5. The AI returns structured JSON with `name`, `description`, `difficulty`, `cuisine`, and `image_hint`.
-6. The response is parsed, cleaned, validated, and images are mapped automatically.
-7. Recipes are displayed beautifully on the frontend, with async loading and fallback messages.
-
----
-
-## 📱 Mobile Responsiveness
-
-The entire interface is responsive using Tailwind CSS. Layouts such as AI Suggestions, Recipe Details, and Pantry Management automatically adjust to screen sizes. Buttons are large and touch-friendly for mobile devices.
-
----
-
-## 🧹 Technical Polish
-
-* **Automatic Cache Cleanup:** A Django signal removes expired AI cache entries older than 24 hours.
-* **Graceful Frontend Recovery:** If an API fetch fails, the page retries automatically after a few seconds.
-* **Pagination:** Index page shows 6 recipes per page with a clean, centered navigation.
-* **Improved User Forms:** Login and Signup forms have visible input borders and mobile-friendly spacing.
-* **Unit Tests:** JSON parsing and AI API responses are verified using Django’s test suite.
-
----
-
-## 🧪 Running Unit Tests
-
-```bash
-docker compose run web python manage.py test
+```
+WhatToCook Ecosystem
+├── 🌐 React 18 + TypeScript + TailwindCSS + TanStack Query Frontend (Vite)
+├── ⚡ Django 5.2 REST Framework API Backend (Python 3.11)
+├── 🤖 Multimodal AI Vision & Generative Recipe Streaming Engine
+├── 💬 Telegram Bot Webhook & Interactive Pantry Handshake
+├── 📱 Smart Grocery Exporter (WhatsApp, Telegram, Markdown, Print)
+├── 🗄️ PostgreSQL 15 (Docker) / SQLite3 (Auto-fallback local dev)
+└── 🚀 Redis 7 + Celery Task Queue
 ```
 
-This runs all test cases inside the isolated web container, ensuring deterministic results regardless of the host OS.
+### ✨ Core Features
+1. **📸 AI Vision Pantry Scanner**: Snap a photo of your fridge or countertop; AI detects recognized food items and automatically stocks your digital pantry shelf.
+2. **🧠 Smart Zero-Waste Recipe Matching**: Instantly computes 100% matched recipes you can cook right now with no extra groceries needed, plus partial matches (missing only 1 or 2 items).
+3. **⚡ Live SSE Generative Streaming**: Watch recipes, macro breakdowns, and master chef secrets stream in real-time.
+4. **🤖 Telegram AI Chef Bot**: Link your Telegram account with 1-click. Send `/cook`, `/pantry`, `/add Garlic`, or `/remove Butter` from your phone on the go.
+5. **🛒 Smart Grocery List & 1-Click Social Exporter**: Add missing ingredients from any recipe or partial match with 1 click. Export formatted grocery lists to **WhatsApp**, **Telegram**, Clipboard, or Print slip.
+6. **⚖️ Dynamic Portion Scaler (1x, 2x, 4x, 6x, 8x)**: Scalable ingredient measurements (e.g. `2 tbsp`, `250g`, `1/2 cup`) dynamically recalibrate portions in real-time without boundary overflows.
+7. **💡 AI Substitution Assistant**: Missing buttermilk, eggs, heavy cream, or parmesan? Instant culinary swaps and ratio tips.
+8. **📱 Progressive Web App (PWA)**: Installable on iOS & Android with offline pantry viewing.
 
 ---
 
+## ⚡ Superfast Quickstart with Docker (Recommended)
 
-## 🧰 Requirements
-
-All dependencies are listed in `requirements.txt`. To install locally (outside Docker):
+Run the complete multi-service stack with a single command:
 
 ```bash
+# 1. Clone the repository
+git clone https://github.com/rezaxr14/WhatToCook-AI-Powered-Recipe-Generator.git
+cd WhatToCook-AI-Powered-Recipe-Generator
+
+# 2. Configure environment variables
+cp .env.example .env
+# Edit .env and paste your GEMINI_API_KEY (from https://aistudio.google.com)
+
+# 3. Build and launch all lightweight containers
+docker compose up -d --build
+
+# 4. Seed the rich recipe database (13+ gourmet dishes with HD images)
+docker compose exec web python manage.py seed_recipes
+```
+
+### 🌐 Access Points:
+- **Frontend Web App**: [http://localhost:5173](http://localhost:5173)
+- **Django REST API**: [http://localhost:8000/api/](http://localhost:8000/api/)
+- **Django Admin Panel**: [http://localhost:8000/admin/](http://localhost:8000/admin/)
+
+---
+
+## 💻 Local Development Setup (Without Docker)
+
+### 1. Backend Setup
+```bash
+# Create and activate virtual environment
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Run migrations & seed recipes
+python manage.py migrate
+python manage.py seed_recipes
+
+# Start backend server
+python manage.py runserver 127.0.0.1:8000
+```
+
+### 2. Frontend Setup
+```bash
+cd frontend
+
+# Install node dependencies
+npm install
+
+# Start Vite development server
+npm run dev
 ```
 
 ---
 
-## 💡 Conclusion
+## 🧪 Testing Suite
 
-**WhatToCook** is not just another recipe website — it’s an intelligent, responsive, and cache-aware AI assistant that dynamically generates personalized meals based on real user input. Built with Django, PostgreSQL, and modern frontend practices, it demonstrates deep understanding of backend architecture, API design, and asynchronous UI updates.
+Run the comprehensive Django REST API test suite:
 
-*This project showcases full-stack integration, AI JSON handling, and containerized deployment — far exceeding the complexity of standard CRUD or social web apps.*
+```bash
+python manage.py test GetFood
+```
+
+Target: **100% passing tests (19/19)** covering:
+- Authentication & Auto-Pantry Creation
+- Pantry Ingredient Operations & Optimistic Handshakes
+- Zero-Waste Match Engine Algorithms (100% & Partial matches)
+- Multimodal Vision Scanner & Fallback Resiliency
+- Live AI Recipe Generation & Streaming Endpoints

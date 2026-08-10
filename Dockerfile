@@ -1,24 +1,16 @@
-# Base image
-FROM python:latest
+FROM python:3.11-alpine
 
-# Set work dir
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
 WORKDIR /app
 
-# Install system deps (for psycopg2, etc.)
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpq-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN pip install requests
-
-# Copy requirements first (for caching)
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-# Copy project
 COPY . .
 
-# Run server
-#CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+RUN chmod +x entrypoint.sh || true
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py seed_recipes && python manage.py runserver 0.0.0.0:8000"]

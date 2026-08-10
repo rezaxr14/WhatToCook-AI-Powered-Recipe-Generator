@@ -1,0 +1,29 @@
+# Node Dependencies & Build Outputs
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+
+# Python Cache & Bytecode
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Environment files
+.env
+.env.local
+
+# Local DB & Test Artifacts
+db.sqlite3
+*.sqlite3
+artifacts_screenshots/
+test-results/
+*.tsbuildinfo
+
+# Operating System / IDE artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

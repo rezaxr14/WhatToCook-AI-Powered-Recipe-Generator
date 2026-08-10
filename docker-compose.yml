@@ -1,22 +1,56 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: whattocook_frontend
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - VITE_BACKEND_URL=http://web:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - web
+
   web:
     build: .
     container_name: whattocook_web
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - .env
     environment:
       - DJANGO_SETTINGS_MODULE=WhatToCook.settings
-    command: python manage.py runserver 0.0.0.0:8000
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - HTTP_PROXY=http://host.docker.internal:10808
+      - HTTPS_PROXY=http://host.docker.internal:10808
+      - http_proxy=http://host.docker.internal:10808
+      - https_proxy=http://host.docker.internal:10808
+      - NO_PROXY=localhost,127.0.0.1,web,db,redis,celery,telegram_bot,frontend,172.18.0.0/16
+      - no_proxy=localhost,127.0.0.1,web,db,redis,celery,telegram_bot,frontend,172.18.0.0/16
+    command: sh -c "pip install -r requirements.txt && python manage.py migrate && python manage.py seed_recipes && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
     ports:
+      - "8000:8000"
       - "9000:8000"
     depends_on:
       - db
       - redis
 
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: whattocook_db
     env_file:
       - .env
@@ -24,17 +58,29 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=64MB"
+      - "-c"
+      - "work_mem=4MB"
+      - "-c"
+      - "max_connections=30"
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
     container_name: whattocook_redis
-    ports:
-      - "6379:6379"
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
 
   celery:
     build: .
     container_name: whattocook_celery
-    command: celery -A WhatToCook worker --loglevel=info
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: sh -c "pip install -r requirements.txt && python -m celery -A WhatToCook worker --loglevel=info --concurrency=2"
     depends_on:
       - redis
       - db
@@ -42,6 +88,42 @@ services:
       - .:/app
     env_file:
       - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - HTTP_PROXY=http://host.docker.internal:10808
+      - HTTPS_PROXY=http://host.docker.internal:10808
+      - http_proxy=http://host.docker.internal:10808
+      - https_proxy=http://host.docker.internal:10808
+      - NO_PROXY=localhost,127.0.0.1,web,db,redis,celery,telegram_bot,frontend,172.18.0.0/16
+      - no_proxy=localhost,127.0.0.1,web,db,redis,celery,telegram_bot,frontend,172.18.0.0/16
+
+  telegram_bot:
+    build: .
+    container_name: whattocook_telegram_bot
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: sh -c "pip install -r requirements.txt && python manage.py run_telegram_bot"
+    depends_on:
+      - web
+      - db
+      - redis
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - HTTP_PROXY=http://host.docker.internal:10808
+      - HTTPS_PROXY=http://host.docker.internal:10808
+      - http_proxy=http://host.docker.internal:10808
+      - https_proxy=http://host.docker.internal:10808
+      - NO_PROXY=localhost,127.0.0.1,web,db,redis,celery,telegram_bot,frontend,172.18.0.0/16
+      - no_proxy=localhost,127.0.0.1,web,db,redis,celery,telegram_bot,frontend,172.18.0.0/16
 
 volumes:
   db_data:

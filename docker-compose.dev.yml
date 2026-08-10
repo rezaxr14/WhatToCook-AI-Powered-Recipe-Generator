@@ -1,0 +1,106 @@
+# Docker Compose for direct network environments (No Local Proxy Required)
+# Usage: docker compose -f docker-compose.dev.yml up -d --build
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: whattocook_frontend_dev
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    environment:
+      - VITE_BACKEND_URL=http://web:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - web
+
+  web:
+    build: .
+    container_name: whattocook_web_dev
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=WhatToCook.settings
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    command: sh -c "python manage.py migrate && python manage.py seed_recipes && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+      - "9000:8000"
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:15-alpine
+    container_name: whattocook_db_dev
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data_dev:/var/lib/postgresql/data
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=64MB"
+      - "-c"
+      - "work_mem=4MB"
+      - "-c"
+      - "max_connections=30"
+
+  redis:
+    image: redis:7-alpine
+    container_name: whattocook_redis_dev
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
+
+  celery:
+    build: .
+    container_name: whattocook_celery_dev
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    command: sh -c "python -m celery -A WhatToCook worker --loglevel=info --concurrency=2"
+    depends_on:
+      - redis
+      - db
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+
+  telegram_bot:
+    build: .
+    container_name: whattocook_telegram_bot_dev
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    command: sh -c "python manage.py run_telegram_bot"
+    depends_on:
+      - web
+      - redis
+      - db
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+
+volumes:
+  db_data_dev:

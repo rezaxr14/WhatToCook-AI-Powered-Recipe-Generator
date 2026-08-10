@@ -1,24 +1,77 @@
+from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Ingredient, Recipe, UserPantry
+from .models import Ingredient, Recipe, RecipeIngredient, UserPantry
+from .utils import find_best_image, find_ingredient_image
 
 
 class IngredientSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Ingredient
-        fields = "__all__"
+        fields = ["id", "name", "calories_per_100g", "category", "image_url"]
+
+    def get_image_url(self, obj):
+        return find_ingredient_image(obj.name)
+
+
+class RecipeIngredientSerializer(serializers.ModelSerializer):
+    ingredient = IngredientSerializer(read_only=True)
+    ingredient_id = serializers.PrimaryKeyRelatedField(
+        queryset=Ingredient.objects.all(), source="ingredient", write_only=True
+    )
+
+    class Meta:
+        model = RecipeIngredient
+        fields = ["id", "ingredient", "ingredient_id", "quantity", "unit"]
 
 
 class RecipeSerializer(serializers.ModelSerializer):
     ingredients = IngredientSerializer(many=True, read_only=True)
+    recipe_ingredients = RecipeIngredientSerializer(source="recipeingredient_set", many=True, read_only=True)
+    image = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
-        fields = "__all__"
+        fields = [
+            "id",
+            "name",
+            "description",
+            "cooking_time",
+            "instructions",
+            "image",
+            "image_url",
+            "ingredients",
+            "recipe_ingredients",
+        ]
+
+    def _get_resolved_image(self, obj):
+        if obj.image and hasattr(obj.image, "url") and obj.image.name:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return find_best_image(obj.name)
+
+    def get_image(self, obj):
+        return self._get_resolved_image(obj)
+
+    def get_image_url(self, obj):
+        return self._get_resolved_image(obj)
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username", "email"]
 
 
 class UserPantrySerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
     ingredients = IngredientSerializer(many=True, read_only=True)
+    total_ingredients = serializers.IntegerField(source="ingredients.count", read_only=True)
 
     class Meta:
         model = UserPantry
-        fields = "__all__"
+        fields = ["id", "user", "ingredients", "total_ingredients"]

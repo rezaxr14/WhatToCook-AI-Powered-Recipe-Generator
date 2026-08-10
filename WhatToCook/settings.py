@@ -16,6 +16,18 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Auto-load .env file if present
+_env_file = BASE_DIR / ".env"
+if _env_file.exists():
+    with open(_env_file, "r", encoding="utf-8") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                _k, _v = _k.strip(), _v.strip()
+                if _k not in os.environ:
+                    os.environ[_k] = _v
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -26,12 +38,13 @@ SECRET_KEY = 'django-insecure-8@5!9rc+j+jm1p-d^jr!!h9#j&s%ev73o+occ&ll)5amw$c8l8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,6 +56,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -76,17 +90,40 @@ WSGI_APPLICATION = 'WhatToCook.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+HAS_POSTGRES_DRIVER = False
+try:
+    import psycopg  # noqa
+    HAS_POSTGRES_DRIVER = True
+except ImportError:
+    try:
+        import psycopg2  # noqa
+        HAS_POSTGRES_DRIVER = True
+    except ImportError:
+        HAS_POSTGRES_DRIVER = False
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("POSTGRES_DB", "whattocook"),
-        "USER": os.environ.get("POSTGRES_USER", "whattocook"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "secret"),
-        "HOST": os.environ.get("DB_HOST", "db"),   # "db" = service name in docker-compose
-        "PORT": os.environ.get("DB_PORT", "5432"),
+USE_POSTGRES = (
+    os.environ.get("USE_POSTGRES", "").lower() in ("1", "true", "yes")
+    or os.environ.get("DB_HOST") is not None
+) and HAS_POSTGRES_DRIVER
+
+if USE_POSTGRES:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("POSTGRES_DB", "whattocook"),
+            "USER": os.environ.get("POSTGRES_USER", "whattocook"),
+            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "secret"),
+            "HOST": os.environ.get("DB_HOST", "db"),
+            "PORT": os.environ.get("DB_PORT", "5432"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Password validation
@@ -142,9 +179,45 @@ LOGOUT_REDIRECT_URL = '/'
 SESSION_COOKIE_SECURE = False  # True only if using HTTPS
 CSRF_COOKIE_SECURE = False     # True only if using HTTPS
 
+# CORS & CSRF Settings for React Frontend
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+    'http://localhost:9000',
+]
+
+# AI Configuration (Google AI Studio Gemini + LM Studio)
+AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini")  # "gemini" or "lmstudio"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+
 LMSTUDIO_URL = os.getenv("LMSTUDIO_URL", "http://host.docker.internal:1234/v1/chat/completions")
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.2-3b-instruct")
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+}
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
@@ -152,4 +225,5 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
+
 
