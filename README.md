@@ -48,6 +48,8 @@ cd WhatToCook-AI-Powered-Recipe-Generator
 cp .env.example .env
 # Edit .env and paste your GEMINI_API_KEY (from https://aistudio.google.com)
 
+# if you dont use localhost:10808 to connect to internet use the docker-compose.dev.yml instead(just remove other compose file and rename this one)
+
 # 3. Build and launch all lightweight containers
 docker compose up -d --build
 
