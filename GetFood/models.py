@@ -28,6 +28,20 @@ class Recipe(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def resolved_image(self) -> str:
+        """Uploaded image if present, otherwise a curated photo for the dish.
+        Used by both the DRF serializer and legacy templates so every surface
+        shows a real image."""
+        from .utils import find_best_image
+
+        if self.image and getattr(self.image, "name", ""):
+            try:
+                return self.image.url
+            except ValueError:
+                pass
+        return find_best_image(self.name)
+
 
 class RecipeIngredient(models.Model):
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)

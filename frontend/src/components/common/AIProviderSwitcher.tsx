@@ -100,7 +100,7 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
                 className="fixed inset-0 z-40"
                 onClick={() => setModelDropdownOpen(false)}
               />
-              <div className="absolute right-0 mt-1.5 w-72 max-h-96 overflow-y-auto bg-stone-900 border border-stone-700 rounded-2xl shadow-2xl z-50 p-2 space-y-1 scrollbar-thin">
+              <div className="fixed left-1/2 -translate-x-1/2 top-24 w-[min(18rem,calc(100vw-1.5rem))] max-h-96 overflow-y-auto bg-stone-900 border border-stone-700 rounded-2xl shadow-2xl z-50 p-2 space-y-1 scrollbar-thin sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:translate-x-0 sm:mt-1.5 sm:w-72">
                 <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-stone-400 flex items-center justify-between">
                   <span>Google Gemini Models</span>
                   <span className="text-[9px] text-amber-400/80 lowercase">auto-fallback active</span>

@@ -88,6 +88,7 @@ export interface RecipeChatRequest {
   history?: Array<{ role: string; content: string }>;
   provider?: string;
   model?: string;
+  language?: string;
 }
 
 export interface RecipeChatResponse {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, ChefHat, Clock, Utensils, Wand2, ShoppingBag, ArrowRight, RefreshCw, Cpu } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Sparkles, ChefHat, Clock, ArrowRight, RefreshCw, ShoppingBag } from 'lucide-react';
 import { AISuggestedDish, AIProvider } from '../types/ai';
 import { aiApi } from '../api/aiApi';
 import { usePantry } from '../context/PantryContext';
@@ -12,6 +13,7 @@ import { AIProviderSwitcher } from '../components/common/AIProviderSwitcher';
 import { getDishImageUrl } from '../utils/imageUtils';
 
 export const AIChefPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { pantryIngredients, activeAIProvider, activeModel, setActiveAIProvider } = usePantry();
   const { error, aiToast } = useToast();
@@ -46,7 +48,7 @@ export const AIChefPage: React.FC = () => {
 
   const handleGenerate = async () => {
     if (selectedIngredients.length === 0) {
-      error('Please select at least one ingredient.', 'Pantry Selection Required');
+      error(t('aiChefPage.errSelect'), t('aiChefPage.errSelectTitle'));
       return;
     }
 
@@ -63,7 +65,7 @@ export const AIChefPage: React.FC = () => {
       if (res.status === 'done' && res.recipes) {
         setSuggestions(res.recipes);
         setGeneratedProvider(res.provider || activeAIProvider);
-        aiToast(`Crafted ${res.recipes.length} gourmet dishes!`, 'Chef Creation Ready 🍽️');
+        aiToast(t('aiChefPage.toastCrafted', { count: res.recipes.length }), t('aiChefPage.toastReadyTitle'));
       } else if (res.task_id) {
         // Poll celery task
         const pollInterval = setInterval(async () => {
@@ -73,7 +75,7 @@ export const AIChefPage: React.FC = () => {
               clearInterval(pollInterval);
               setSuggestions(taskRes.recipes || []);
               setIsGenerating(false);
-              aiToast('AI recipe generation complete!', 'Bon Appétit 👨‍🍳');
+              aiToast(t('aiChefPage.toastComplete'), t('aiChefPage.toastDoneTitle'));
             }
           } catch (e) {
             clearInterval(pollInterval);
@@ -82,7 +84,7 @@ export const AIChefPage: React.FC = () => {
         }, 2000);
       }
     } catch (err: any) {
-      error(err.message || 'AI Chef encountered a momentary hiccup.', 'Generation Error');
+      error(err.message || t('aiChefPage.errHiccup'), t('aiChefPage.errGenTitle'));
     } finally {
       setIsGenerating(false);
     }
@@ -95,22 +97,17 @@ export const AIChefPage: React.FC = () => {
         <div className="absolute top-0 right-0 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              <span>Generative AI Culinary Studio</span>
-            </span>
-
-            <AIProviderSwitcher />
-          </div>
+          <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>{t('aiChefPage.badge')}</span>
+          </span>
 
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight">
-            Ask Your AI Master Chef
+            {t('aiChefPage.title')}
           </h1>
 
           <p className="text-stone-300 text-sm sm:text-base leading-relaxed max-w-2xl">
-            Choose the ingredients you want to use from your pantry. AI culinary intelligence
-            will invent restaurant-quality dishes tailored precisely to your kitchen.
+            {t('aiChefPage.subtitle')}
           </p>
         </div>
       </div>
@@ -120,10 +117,10 @@ export const AIChefPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="text-base font-bold text-stone-900">
-              Select Ingredients to Cook With ({selectedIngredients.length} selected)
+              {t('aiChefPage.selectedCount', { count: selectedIngredients.length })}
             </h3>
             <p className="text-stone-500 text-xs mt-0.5">
-              Click ingredients to toggle them on or off for this generation session.
+              {t('aiChefPage.toggleHint')}
             </p>
           </div>
 
@@ -133,7 +130,7 @@ export const AIChefPage: React.FC = () => {
               className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1 self-start sm:self-auto"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
-              <span>Select All from Pantry ({pantryIngredients.length})</span>
+              <span>{t('aiChefPage.selectAllPantry', { count: pantryIngredients.length })}</span>
             </button>
           )}
         </div>
@@ -170,42 +167,47 @@ export const AIChefPage: React.FC = () => {
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleAddCustom();
             }}
-            placeholder="Add extra ingredient (e.g. Truffle Butter)..."
+            placeholder={t('aiChefPage.customPlaceholder')}
             className="flex-1 px-3.5 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
           />
           <StyledButton $variant="secondary" $size="sm" onClick={handleAddCustom}>
-            + Add
+            {t('aiChefPage.add')}
           </StyledButton>
         </div>
 
         {/* Action Trigger */}
-        <div className="pt-4 border-t border-stone-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="pt-4 border-t border-stone-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="text-xs text-stone-500 flex items-center gap-1.5 font-mono">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>
-              Engine: <strong>{activeAIProvider === 'gemini' ? `Google Gemini (${activeModel})` : 'Local AI (LM Studio)'}</strong>
+              {t('aiChefPage.engineLabel')}{' '}
+              <strong>{activeAIProvider === 'gemini' ? t('aiChefPage.engineGemini', { model: activeModel }) : t('aiChefPage.engineLocal')}</strong>
             </span>
           </div>
 
-          <StyledButton
-            $variant="primary"
-            $size="lg"
-            onClick={handleGenerate}
-            disabled={isGenerating || selectedIngredients.length === 0}
-            className="w-full sm:w-auto"
-          >
-            {isGenerating ? (
-              <>
-                <RefreshCw className="w-5 h-5 animate-spin" />
-                <span>Simmering Ideas...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5" />
-                <span>Generate Chef Recipes</span>
-              </>
-            )}
-          </StyledButton>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <AIProviderSwitcher />
+
+            <StyledButton
+              $variant="primary"
+              $size="lg"
+              onClick={handleGenerate}
+              disabled={isGenerating || selectedIngredients.length === 0}
+              className="w-full sm:w-auto"
+            >
+              {isGenerating ? (
+                <>
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <span>{t('aiChefPage.generating')}</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  <span>{t('aiChefPage.generate')}</span>
+                </>
+              )}
+            </StyledButton>
+          </div>
         </div>
       </div>
 
@@ -218,14 +220,14 @@ export const AIChefPage: React.FC = () => {
             <div>
               <h2 className="text-2xl font-extrabold text-stone-900 tracking-tight flex items-center gap-2">
                 <ChefHat className="w-6 h-6 text-brand-500" />
-                <span>Chef Creations</span>
+                <span>{t('aiChefPage.creationsTitle')}</span>
               </h2>
               <p className="text-stone-500 text-xs mt-0.5">
-                Powered by AI Culinary Engine
+                {t('aiChefPage.creationsSub')}
               </p>
             </div>
             <span className="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1 rounded-full">
-              {suggestions.length} Dishes Ready
+              {t('aiChefPage.dishesReady', { count: suggestions.length })}
             </span>
           </div>
 
@@ -254,7 +256,7 @@ export const AIChefPage: React.FC = () => {
 
                     <div className="absolute top-3 left-3 flex gap-2">
                       <span className="bg-stone-900/80 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                        {dish.cuisine || 'Gourmet'}
+                        {dish.cuisine || t('aiChefPage.gourmet')}
                       </span>
                       {dish.difficulty && (
                         <span className="bg-emerald-500/90 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
@@ -283,7 +285,7 @@ export const AIChefPage: React.FC = () => {
                       </span>
 
                       <div className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 group-hover:text-brand-700 group-hover:translate-x-1 transition-transform">
-                        <span>Cook Full Recipe</span>
+                        <span>{t('aiChefPage.cookFullRecipe')}</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </div>
                     </div>

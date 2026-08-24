@@ -13,13 +13,13 @@ from .ai_service import generate_recipe_suggestions
 
 
 @shared_task(bind=True)
-def generate_ai_suggestions_task(self, ingredients_list, ingredients_hash, provider=None):
+def generate_ai_suggestions_task(self, ingredients_list, ingredients_hash, provider=None, language=None):
     """
     Celery async task: generate AI-based recipe ideas from ingredients
     using Gemini, LM Studio, or intelligent culinary fallback.
     """
     try:
-        recipes = generate_recipe_suggestions(ingredients_list, provider=provider)
+        recipes = generate_recipe_suggestions(ingredients_list, provider=provider, language=language)
 
         # Store in cache
         AISuggestionCache.objects.update_or_create(

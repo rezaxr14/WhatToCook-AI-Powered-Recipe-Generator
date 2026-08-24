@@ -24,6 +24,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/legacy': {
+        target: backendTarget,
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });

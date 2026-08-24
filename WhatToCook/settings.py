@@ -32,13 +32,24 @@ if _env_file.exists():
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
+def _env_bool(name: str, default: str = "true") -> bool:
+    return os.environ.get(name, default).strip().lower() not in ("0", "false", "no", "off")
+
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-8@5!9rc+j+jm1p-d^jr!!h9#j&s%ev73o+occ&ll)5amw$c8l8'
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY",
+    "django-insecure-8@5!9rc+j+jm1p-d^jr!!h9#j&s%ev73o+occ&ll)5amw$c8l8",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = _env_bool("DEBUG", "true")
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("ALLOWED_HOSTS", "*").split(",")
+    if host.strip()
+]
 
 
 # Application definition
@@ -58,6 +69,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -101,10 +113,17 @@ except ImportError:
     except ImportError:
         HAS_POSTGRES_DRIVER = False
 
-USE_POSTGRES = (
-    os.environ.get("USE_POSTGRES", "").lower() in ("1", "true", "yes")
-    or os.environ.get("DB_HOST") is not None
-) and HAS_POSTGRES_DRIVER
+_use_postgres_env = os.environ.get("USE_POSTGRES", "").strip().lower()
+_db_host = os.environ.get("DB_HOST", "").strip()
+
+if _use_postgres_env in ("0", "false", "no"):
+    # Explicit opt-out wins (e.g. running tests/bare-metal dev while .env targets Docker).
+    USE_POSTGRES = False
+else:
+    USE_POSTGRES = (
+        _use_postgres_env in ("1", "true", "yes")
+        or bool(_db_host)
+    ) and HAS_POSTGRES_DRIVER
 
 if USE_POSTGRES:
     DATABASES = {
@@ -161,6 +180,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -193,12 +213,17 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
-CSRF_TRUSTED_ORIGINS = [
+DEFAULT_CSRF_ORIGINS = [
     'http://localhost:5173',
-    'http://localhost:3000',
     'http://127.0.0.1:5173',
+    'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'http://localhost:9000',
+    'http://localhost:4173',
+    'http://127.0.0.1:4173',
+]
+CSRF_TRUSTED_ORIGINS = [
+    *DEFAULT_CSRF_ORIGINS,
+    *[o.strip() for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()],
 ]
 
 # AI Configuration (Google AI Studio Gemini + LM Studio)
@@ -219,11 +244,33 @@ REST_FRAMEWORK = {
     ],
 }
 
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
+# Celery: default to localhost for bare-metal dev; Docker sets redis://redis:6379/0 via .env
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
+
+# Cache backend: Redis when REDIS_URL is provided (Docker), local-memory otherwise.
+# This gives Redis a first-class job (hot-path caching) beyond the Celery broker role.
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
+if REDIS_URL.startswith("redis://"):
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            "KEY_PREFIX": "whattocook",
+            "TIMEOUT": 300,
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "whattocook-local",
+            "TIMEOUT": 300,
+        }
+    }
 
 

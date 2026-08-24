@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import i18n from '../i18n';
 
 interface UseAIStreamOptions {
   onChunk?: (chunk: string, accumulated: string) => void;
@@ -24,7 +25,7 @@ export const useAIStream = (options?: UseAIStreamOptions) => {
       abortControllerRef.current = new AbortController();
 
       try {
-        const url = `/api/ai/stream/recipe/?recipe=${encodeURIComponent(recipeName)}&provider=${encodeURIComponent(provider)}`;
+        const url = `/api/ai/stream/recipe/?recipe=${encodeURIComponent(recipeName)}&provider=${encodeURIComponent(provider)}&language=${encodeURIComponent(i18n.language)}`;
         const response = await fetch(url, {
           signal: abortControllerRef.current.signal,
           headers: {

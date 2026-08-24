@@ -14,13 +14,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
     {% for recipe in possible_recipes %}
     <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-        {% if recipe.image %}
-        <img src="{{ recipe.image.url }}" alt="{{ recipe.name }}" class="w-full h-48 object-cover">
-        {% else %}
-        <div class="w-full h-48 bg-orange-100 flex items-center justify-center text-orange-600 font-semibold">
-            No Image
-        </div>
-        {% endif %}
+        <img src="{{ recipe.resolved_image }}" alt="{{ recipe.name }}" class="w-full h-48 object-cover">
 
         <div class="p-4">
             <h2 class="text-xl font-bold text-orange-700 mb-2">{{ recipe.name }}</h2>

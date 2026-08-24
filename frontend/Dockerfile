@@ -1,11 +1,27 @@
-FROM node:20-alpine
+# ---------- Stage 1: build the SPA ----------
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
-ENV NODE_OPTIONS="--max-old-space-size=512"
+ENV NODE_OPTIONS="--max-old-space-size=1024"
+
+COPY package.json package-lock.json ./
+RUN npm ci --prefer-offline
 
 COPY . .
+RUN npm run build
 
-EXPOSE 5173
+# ---------- Stage 2: serve with nginx ----------
+FROM nginx:alpine
 
-CMD ["sh", "-c", "npm install --prefer-offline && npm run dev -- --host 0.0.0.0"]
+RUN rm /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+COPY --from=build /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O /dev/null http://127.0.0.1/ || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

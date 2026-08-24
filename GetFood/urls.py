@@ -20,6 +20,7 @@ from .views import (
     api_auth_me,
     api_auth_signup,
     api_can_cook,
+    api_health,
     api_pantry_add,
     api_pantry_clear,
     api_pantry_get,
@@ -31,6 +32,7 @@ from .views import (
     api_shopping_list_remove,
     api_shopping_list_sync,
     api_shopping_list_toggle,
+    api_stats,
     api_telegram_get_link,
     api_telegram_webhook,
 )
@@ -43,6 +45,10 @@ router.register("pantries", UserPantryViewSet)
 urlpatterns = [
     # DRF Model ViewSets
     path("api/", include(router.urls)),
+
+    # Platform
+    path("api/stats/", api_stats, name="api_stats"),
+    path("api/health/", api_health, name="api_health"),
 
     # Auth REST APIs
     path("api/auth/login/", api_auth_login, name="api_auth_login"),
@@ -82,17 +88,16 @@ urlpatterns = [
     path("api/telegram/link/", api_telegram_get_link, name="api_telegram_get_link"),
     path("api/telegram/webhook/", api_telegram_webhook, name="api_telegram_webhook"),
 
-    # Legacy HTML and AJAX Endpoints
-    path("", views.index, name="index"),
-    path("recipe/<int:recipe_id>/", views.recipe_detail, name="recipe_detail"),
-    path("pantry/", views.pantry, name="pantry"),
-    path("can_cook/", views.can_cook, name="can_cook"),
-    path("signup/", views.signup_view, name="signup"),
-    path("login/", views.login_view, name="login"),
-    path("logout/", auth_views.LogoutView.as_view(next_page="/"), name="logout"),
-    path("ai_suggestions/", views.ai_suggestions, name="ai_suggestions"),
-    path("ai/recipe/<str:name>/", views.ai_recipe_detail, name="ai_recipe_detail"),
-    path("ai/suggestions/api/", views.ai_suggestions_api, name="ai_suggestions_api"),
-    path("ai/recipe/<str:recipe_name>/api/", views.ai_recipe_detail_api, name="ai_recipe_detail_api_legacy"),
-    path("ai/task-status/<str:task_id>/", views.ai_task_status, name="ai_task_status_legacy"),
+    # Legacy server-rendered HTML pages (superseded by the React SPA in /frontend)
+    path("legacy/", views.index, name="index"),
+    path("legacy/recipe/<int:recipe_id>/", views.recipe_detail, name="recipe_detail"),
+    path("legacy/pantry/", views.pantry, name="pantry"),
+    path("legacy/can_cook/", views.can_cook, name="can_cook"),
+    path("legacy/signup/", views.signup_view, name="signup"),
+    path("legacy/login/", views.login_view, name="login"),
+    path("legacy/logout/", auth_views.LogoutView.as_view(next_page="/legacy/"), name="logout"),
+    path("legacy/ai_suggestions/", views.ai_suggestions, name="ai_suggestions"),
+    path("legacy/ai/suggestions/api/", views.ai_suggestions_api, name="ai_suggestions_api"),
+    path("legacy/ai/task-status/<str:task_id>/", views.ai_task_status, name="ai_task_status"),
+    path("legacy/ai/recipe/<str:name>/", views.ai_recipe_detail, name="ai_recipe_detail"),
 ]

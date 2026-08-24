@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { Ingredient } from '../types/ingredient';
 import { AIProvider, AIProvidersResponse } from '../types/ai';
 import { pantryApi } from '../api/pantryApi';
@@ -164,8 +164,9 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, [isAuthenticated, refreshPantry]);
 
   // Derived available ingredients (system ingredients not in user pantry)
-  const availableIngredients = allIngredients.filter(
-    (allIng) => !pantryIngredients.some((pIng) => pIng.id === allIng.id)
+  const availableIngredients = useMemo(
+    () => allIngredients.filter((allIng) => !pantryIngredients.some((pIng) => pIng.id === allIng.id)),
+    [allIngredients, pantryIngredients]
   );
 
   const isInPantry = useCallback(
@@ -173,53 +174,62 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     [pantryIngredients]
   );
 
-  const addIngredient = async (ingredient: Ingredient | number | string) => {
-    try {
-      let payload: { ingredient_id?: number; name?: string } = {};
-      let ingredientName = '';
+  const addIngredient = useCallback(
+    async (ingredient: Ingredient | number | string) => {
+      try {
+        let payload: { ingredient_id?: number; name?: string } = {};
+        let ingredientName = '';
 
-      if (typeof ingredient === 'number') {
-        payload.ingredient_id = ingredient;
-        const found = allIngredients.find((i) => i.id === ingredient);
-        ingredientName = found ? found.name : 'Ingredient';
-      } else if (typeof ingredient === 'string') {
-        payload.name = ingredient;
-        ingredientName = ingredient;
-      } else {
-        payload.ingredient_id = ingredient.id;
-        ingredientName = ingredient.name;
+        if (typeof ingredient === 'number') {
+          payload.ingredient_id = ingredient;
+          const found = allIngredients.find((i) => i.id === ingredient);
+          ingredientName = found ? found.name : 'Ingredient';
+        } else if (typeof ingredient === 'string') {
+          payload.name = ingredient;
+          ingredientName = ingredient;
+        } else {
+          payload.ingredient_id = ingredient.id;
+          ingredientName = ingredient.name;
+        }
+
+        const res = await pantryApi.addIngredient(payload);
+        setPantryIngredients(res.pantry.ingredients);
+        success(`Added ${ingredientName} to your pantry!`, 'Pantry Updated 🧺');
+      } catch (err: any) {
+        error(err.message || 'Failed to add ingredient.', 'Error');
       }
+    },
+    [allIngredients, success, error]
+  );
 
-      const res = await pantryApi.addIngredient(payload);
-      setPantryIngredients(res.pantry.ingredients);
-      success(`Added ${ingredientName} to your pantry!`, 'Pantry Updated 🧺');
-    } catch (err: any) {
-      error(err.message || 'Failed to add ingredient.', 'Error');
-    }
-  };
+  const addMultipleIngredients = useCallback(
+    async (ids: number[]) => {
+      try {
+        const res = await pantryApi.addIngredient({ ingredient_ids: ids });
+        setPantryIngredients(res.pantry.ingredients);
+        success(`Added ${ids.length} ingredients to your pantry!`, 'Pantry Stocked 🍳');
+      } catch (err: any) {
+        error(err.message || 'Failed to add ingredients.', 'Error');
+      }
+    },
+    [success, error]
+  );
 
-  const addMultipleIngredients = async (ids: number[]) => {
-    try {
-      const res = await pantryApi.addIngredient({ ingredient_ids: ids });
-      setPantryIngredients(res.pantry.ingredients);
-      success(`Added ${ids.length} ingredients to your pantry!`, 'Pantry Stocked 🍳');
-    } catch (err: any) {
-      error(err.message || 'Failed to add ingredients.', 'Error');
-    }
-  };
+  const removeIngredient = useCallback(
+    async (ingredientId: number) => {
+      try {
+        const ingToRemove = pantryIngredients.find((i) => i.id === ingredientId);
+        const res = await pantryApi.removeIngredient(ingredientId);
+        setPantryIngredients(res.pantry.ingredients);
+        info(`Removed ${ingToRemove?.name || 'ingredient'} from pantry.`, 'Pantry Updated');
+      } catch (err: any) {
+        error(err.message || 'Failed to remove ingredient.', 'Error');
+      }
+    },
+    [pantryIngredients, info, error]
+  );
 
-  const removeIngredient = async (ingredientId: number) => {
-    try {
-      const ingToRemove = pantryIngredients.find((i) => i.id === ingredientId);
-      const res = await pantryApi.removeIngredient(ingredientId);
-      setPantryIngredients(res.pantry.ingredients);
-      info(`Removed ${ingToRemove?.name || 'ingredient'} from pantry.`, 'Pantry Updated');
-    } catch (err: any) {
-      error(err.message || 'Failed to remove ingredient.', 'Error');
-    }
-  };
-
-  const clearPantry = async () => {
+  const clearPantry = useCallback(async () => {
     try {
       const res = await pantryApi.clearPantry();
       setPantryIngredients(res.pantry.ingredients || []);
@@ -227,38 +237,59 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     } catch (err: any) {
       error(err.message || 'Failed to clear pantry.', 'Error');
     }
-  };
+  }, [info, error]);
 
-  return (
-    <PantryContext.Provider
-      value={{
-        pantryIngredients,
-        availableIngredients,
-        allIngredients,
-        isLoading,
-        activeAIProvider,
-        activeModel,
-        availableModels,
-        rateLimitedModels,
-        aiProvidersInfo,
-        setActiveAIProvider,
-        setActiveModel,
-        markModelRateLimited,
-        handleRateLimitedModels,
-        addIngredient,
-        addMultipleIngredients,
-        removeIngredient,
-        clearPantry,
-        isInPantry,
-        refreshPantry,
-        isScannerOpen,
-        openScanner,
-        closeScanner,
-      }}
-    >
-      {children}
-    </PantryContext.Provider>
+  // Stable context identity — pantry consumers only re-render on real changes.
+  const value = useMemo<PantryContextValue>(
+    () => ({
+      pantryIngredients,
+      availableIngredients,
+      allIngredients,
+      isLoading,
+      activeAIProvider,
+      activeModel,
+      availableModels,
+      rateLimitedModels,
+      aiProvidersInfo,
+      setActiveAIProvider,
+      setActiveModel,
+      markModelRateLimited,
+      handleRateLimitedModels,
+      addIngredient,
+      addMultipleIngredients,
+      removeIngredient,
+      clearPantry,
+      isInPantry,
+      refreshPantry,
+      isScannerOpen,
+      openScanner,
+      closeScanner,
+    }),
+    [
+      pantryIngredients,
+      availableIngredients,
+      allIngredients,
+      isLoading,
+      activeAIProvider,
+      activeModel,
+      availableModels,
+      rateLimitedModels,
+      aiProvidersInfo,
+      markModelRateLimited,
+      handleRateLimitedModels,
+      addIngredient,
+      addMultipleIngredients,
+      removeIngredient,
+      clearPantry,
+      isInPantry,
+      refreshPantry,
+      isScannerOpen,
+      openScanner,
+      closeScanner,
+    ]
   );
+
+  return <PantryContext.Provider value={value}>{children}</PantryContext.Provider>;
 };
 
 export const usePantry = (): PantryContextValue => {

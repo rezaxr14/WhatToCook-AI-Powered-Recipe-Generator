@@ -11,6 +11,7 @@
 document.addEventListener("DOMContentLoaded", async () => {
     const container = document.getElementById("recipes-container");
     const loading = document.getElementById("loading");
+    const AI_RECIPE_URL_BASE = "{% url 'ai_recipe_detail' name='REPLACE_ME' %}".replace("REPLACE_ME", "");
 
     async function startAISuggestions() {
         try {
@@ -40,7 +41,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function pollTaskStatus(taskId, retries = 30, delay = 5000) {
         for (let i = 0; i < retries; i++) {
-            const res = await fetch(`/ai/task-status/${taskId}/`);
+            const res = await fetch("{% url 'api_ai_task_status' task_id='__TASK__' %}".replace("__TASK__", encodeURIComponent(taskId)));
             const data = await res.json();
 
             if (data.status === "done") {
@@ -68,7 +69,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         container.innerHTML = `
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 ${recipes.map(r => `
-                    <a href="/ai/recipe/${encodeURIComponent(r.name)}/"
+                    <a href="${AI_RECIPE_URL_BASE}${encodeURIComponent(r.name)}/"
                         class="block bg-white rounded-2xl shadow-lg hover:shadow-2xl transition p-4">
                         <img src="${r.image}" alt="${r.name}" class="rounded-xl mb-4 h-40 w-full object-cover">
                         <h3 class="text-lg font-bold text-orange-700">${r.name}</h3>

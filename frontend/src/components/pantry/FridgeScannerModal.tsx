@@ -423,7 +423,7 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
                             </div>
                             <div className="min-w-0">
                               <div className="text-xs font-bold truncate capitalize text-stone-900">
-                                {item.name}
+                                {item.display_name || item.name}
                               </div>
                               <div className="text-[10px] text-stone-400">
                                 {item.category} {item.estimated_quantity && `• ${item.estimated_quantity}`}

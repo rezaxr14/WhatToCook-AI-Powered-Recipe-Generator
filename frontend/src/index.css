@@ -56,3 +56,21 @@
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
+
+/* ===== Internationalization: RTL typography ===== */
+html[lang='fa'] body,
+html[dir='rtl'][lang='fa'] body {
+  font-family: 'Vazirmatn', 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+html[lang='ar'] body,
+html[dir='rtl'][lang='ar'] body {
+  font-family: 'Noto Sans Arabic', 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* Keep code/mono + latin brand text LTR inside RTL pages */
+html[dir='rtl'] code,
+html[dir='rtl'] .font-mono {
+  direction: ltr;
+  unicode-bidi: embed;
+}

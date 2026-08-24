@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import { ShoppingListModal } from '../components/shopping/ShoppingListModal';
 import { TelegramConnectModal } from '../components/settings/TelegramConnectModal';
@@ -49,10 +49,10 @@ export const ShoppingListProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [isShoppingModalOpen, setIsShoppingModalOpen] = useState(false);
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
 
-  const openShoppingModal = () => setIsShoppingModalOpen(true);
-  const closeShoppingModal = () => setIsShoppingModalOpen(false);
-  const openTelegramModal = () => setIsTelegramModalOpen(true);
-  const closeTelegramModal = () => setIsTelegramModalOpen(false);
+  const openShoppingModal = useCallback(() => setIsShoppingModalOpen(true), []);
+  const closeShoppingModal = useCallback(() => setIsShoppingModalOpen(false), []);
+  const openTelegramModal = useCallback(() => setIsTelegramModalOpen(true), []);
+  const closeTelegramModal = useCallback(() => setIsTelegramModalOpen(false), []);
 
   // Initial load: Fetch from Database API and merge with local cache
   useEffect(() => {
@@ -119,7 +119,7 @@ export const ShoppingListProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return () => clearTimeout(timer);
   }, [items]);
 
-  const addItem = (name: string, category?: string, quantity?: string, addedFrom?: string) => {
+  const addItem = useCallback((name: string, category?: string, quantity?: string, addedFrom?: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
 
@@ -139,61 +139,64 @@ export const ShoppingListProvider: React.FC<{ children: React.ReactNode }> = ({ 
         },
       ];
     });
-  };
+  }, []);
 
-  const addMultipleItems = (
-    newItems: Array<{ name: string; category?: string; quantity?: string; addedFrom?: string }>,
-    autoOpenModal: boolean = false
-  ) => {
-    setItems((prev) => {
-      const existingNames = new Set(prev.map((i) => i.name.toLowerCase()));
-      const toAdd: ShoppingItem[] = [];
+  const addMultipleItems = useCallback(
+    (
+      newItems: Array<{ name: string; category?: string; quantity?: string; addedFrom?: string }>,
+      autoOpenModal: boolean = false
+    ) => {
+      setItems((prev) => {
+        const existingNames = new Set(prev.map((i) => i.name.toLowerCase()));
+        const toAdd: ShoppingItem[] = [];
 
-      for (const item of newItems) {
-        const trimmed = item.name.trim();
-        if (trimmed && !existingNames.has(trimmed.toLowerCase())) {
-          existingNames.add(trimmed.toLowerCase());
-          toAdd.push({
-            id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-            name: trimmed,
-            category: item.category || 'General',
-            quantity: item.quantity || '1 item',
-            checked: false,
-            addedFrom: item.addedFrom,
-          });
+        for (const item of newItems) {
+          const trimmed = item.name.trim();
+          if (trimmed && !existingNames.has(trimmed.toLowerCase())) {
+            existingNames.add(trimmed.toLowerCase());
+            toAdd.push({
+              id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+              name: trimmed,
+              category: item.category || 'General',
+              quantity: item.quantity || '1 item',
+              checked: false,
+              addedFrom: item.addedFrom,
+            });
+          }
         }
+
+        if (toAdd.length > 0) {
+          confetti({ particleCount: 60, spread: 60, origin: { y: 0.7 } });
+        }
+        return [...prev, ...toAdd];
+      });
+
+      if (autoOpenModal) {
+        setIsShoppingModalOpen(true);
       }
+    },
+    []
+  );
 
-      if (toAdd.length > 0) {
-        confetti({ particleCount: 60, spread: 60, origin: { y: 0.7 } });
-      }
-      return [...prev, ...toAdd];
-    });
-
-    if (autoOpenModal) {
-      setIsShoppingModalOpen(true);
-    }
-  };
-
-  const toggleItem = (id: string) => {
+  const toggleItem = useCallback((id: string) => {
     setItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, checked: !item.checked } : item))
     );
-  };
+  }, []);
 
-  const removeItem = (id: string) => {
+  const removeItem = useCallback((id: string) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
-  };
+  }, []);
 
-  const clearCompleted = () => {
+  const clearCompleted = useCallback(() => {
     setItems((prev) => prev.filter((item) => !item.checked));
-  };
+  }, []);
 
-  const clearAll = () => {
+  const clearAll = useCallback(() => {
     setItems([]);
-  };
+  }, []);
 
-  const formatListText = (): string => {
+  const formatListText = useCallback((): string => {
     if (items.length === 0) return 'My WhatToCook Shopping List is currently empty!';
 
     const unchecked = items.filter((i) => !i.checked);
@@ -219,56 +222,74 @@ export const ShoppingListProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     text += 'Generated by WhatToCook AI Recipe Generator';
     return text;
-  };
+  }, [items]);
 
-  const exportToWhatsApp = () => {
+  const exportToWhatsApp = useCallback(() => {
     const text = encodeURIComponent(formatListText());
     window.open(`https://wa.me/?text=${text}`, '_blank');
-  };
+  }, [formatListText]);
 
-  const exportToTelegram = () => {
+  const exportToTelegram = useCallback(() => {
     const text = encodeURIComponent(formatListText());
     window.open(`https://t.me/share/url?url=${text}`, '_blank');
-  };
+  }, [formatListText]);
 
-  const copyToClipboard = async (): Promise<boolean> => {
+  const copyToClipboard = useCallback(async (): Promise<boolean> => {
     try {
       await navigator.clipboard.writeText(formatListText());
       return true;
     } catch {
       return false;
     }
-  };
+  }, [formatListText]);
 
-  const printList = () => {
+  const printList = useCallback(() => {
     window.print();
-  };
+  }, []);
 
-  return (
-    <ShoppingListContext.Provider
-      value={{
-        items,
-        isShoppingModalOpen,
-        isTelegramModalOpen,
-        openShoppingModal,
-        closeShoppingModal,
-        openTelegramModal,
-        closeTelegramModal,
-        addItem,
-        addMultipleItems,
-        toggleItem,
-        removeItem,
-        clearCompleted,
-        clearAll,
-        exportToWhatsApp,
-        exportToTelegram,
-        copyToClipboard,
-        printList,
-      }}
-    >
-      {children}
-    </ShoppingListContext.Provider>
+  // Stable context identity — consumers only re-render when a value they use changes.
+  const value = useMemo<ShoppingListContextType>(
+    () => ({
+      items,
+      isShoppingModalOpen,
+      isTelegramModalOpen,
+      openShoppingModal,
+      closeShoppingModal,
+      openTelegramModal,
+      closeTelegramModal,
+      addItem,
+      addMultipleItems,
+      toggleItem,
+      removeItem,
+      clearCompleted,
+      clearAll,
+      exportToWhatsApp,
+      exportToTelegram,
+      copyToClipboard,
+      printList,
+    }),
+    [
+      items,
+      isShoppingModalOpen,
+      isTelegramModalOpen,
+      openShoppingModal,
+      closeShoppingModal,
+      openTelegramModal,
+      closeTelegramModal,
+      addItem,
+      addMultipleItems,
+      toggleItem,
+      removeItem,
+      clearCompleted,
+      clearAll,
+      exportToWhatsApp,
+      exportToTelegram,
+      copyToClipboard,
+      printList,
+    ]
   );
+
+  return <ShoppingListContext.Provider value={value}>{children}</ShoppingListContext.Provider>;
 };
 
 export const useShoppingList = () => {

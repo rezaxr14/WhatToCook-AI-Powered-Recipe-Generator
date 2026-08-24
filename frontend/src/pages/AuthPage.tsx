@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ChefHat, Sparkles, LogIn, UserPlus, Zap, ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { ChefHat, LogIn, UserPlus, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { StyledButton } from '../components/common/StyledButton';
 import { StyledCard } from '../components/common/StyledCard';
 
 export const AuthPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { login, signup, demoLogin, isLoading } = useAuth();
 
@@ -27,7 +29,7 @@ export const AuthPage: React.FC = () => {
       }
       navigate('/');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Authentication failed.');
+      setErrorMessage(err.message || t('auth.authFailed'));
     }
   };
 
@@ -36,7 +38,7 @@ export const AuthPage: React.FC = () => {
       await demoLogin();
       navigate('/');
     } catch (err: any) {
-      setErrorMessage('Guest demo login failed.');
+      setErrorMessage(t('auth.demoFailed'));
     }
   };
 
@@ -49,12 +51,12 @@ export const AuthPage: React.FC = () => {
             <ChefHat className="w-8 h-8" />
           </div>
           <h2 className="text-2xl font-extrabold text-stone-900 tracking-tight">
-            {mode === 'login' ? 'Welcome Back!' : 'Join WhatToCook'}
+            {mode === 'login' ? t('auth.welcomeBack') : t('auth.joinTitle')}
           </h2>
           <p className="text-stone-500 text-xs">
             {mode === 'login'
-              ? 'Sign in to access your saved kitchen pantry & recipes'
-              : 'Create an account to start cooking smarter with AI'}
+              ? t('auth.loginSub')
+              : t('auth.signupSub')}
           </p>
         </div>
 
@@ -66,12 +68,12 @@ export const AuthPage: React.FC = () => {
           className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-brand-500/10 to-orange-500/10 border border-amber-300 text-stone-800 font-bold text-sm hover:border-brand-500 transition-all shadow-sm group"
         >
           <Zap className="w-4 h-4 text-amber-600 fill-amber-500 group-hover:scale-110 transition-transform" />
-          <span>Instant 1-Click Guest Demo (Chef Pantry)</span>
+          <span>{t('auth.guestDemo')}</span>
         </button>
 
         <div className="relative flex py-1 items-center">
           <div className="flex-grow border-t border-stone-200"></div>
-          <span className="flex-shrink mx-4 text-xs uppercase font-bold text-stone-400">or with account</span>
+          <span className="flex-shrink mx-4 text-xs uppercase font-bold text-stone-400">{t('auth.orWithAccount')}</span>
           <div className="flex-grow border-t border-stone-200"></div>
         </div>
 
@@ -84,7 +86,7 @@ export const AuthPage: React.FC = () => {
               mode === 'login' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-900'
             }`}
           >
-            Sign In
+            {t('auth.signInTab')}
           </button>
           <button
             type="button"
@@ -93,7 +95,7 @@ export const AuthPage: React.FC = () => {
               mode === 'signup' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-900'
             }`}
           >
-            Create Account
+            {t('auth.createAccountTab')}
           </button>
         </div>
 
@@ -107,13 +109,13 @@ export const AuthPage: React.FC = () => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-stone-700 mb-1">Username</label>
+            <label className="block text-xs font-semibold text-stone-700 mb-1">{t('auth.username')}</label>
             <input
               type="text"
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. chef_ramsay"
+              placeholder={t('auth.usernamePlaceholder')}
               className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
             />
           </div>
@@ -121,7 +123,7 @@ export const AuthPage: React.FC = () => {
           {mode === 'signup' && (
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Email <span className="text-stone-400 font-normal">(optional)</span>
+                {t('auth.email')} <span className="text-stone-400 font-normal">{t('auth.optional')}</span>
               </label>
               <input
                 type="email"
@@ -134,7 +136,7 @@ export const AuthPage: React.FC = () => {
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-stone-700 mb-1">Password</label>
+            <label className="block text-xs font-semibold text-stone-700 mb-1">{t('auth.password')}</label>
             <input
               type="password"
               required
@@ -156,12 +158,12 @@ export const AuthPage: React.FC = () => {
             {mode === 'login' ? (
               <>
                 <LogIn className="w-4 h-4" />
-                <span>Sign In</span>
+                <span>{t('auth.loginCta')}</span>
               </>
             ) : (
               <>
                 <UserPlus className="w-4 h-4" />
-                <span>Create Account</span>
+                <span>{t('auth.signupCta')}</span>
               </>
             )}
           </StyledButton>

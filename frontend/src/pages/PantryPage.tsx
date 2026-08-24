@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, ChefHat, Sparkles, Plus, Trash2, ArrowRight, Camera, Wand2 } from 'lucide-react';
+import { ShoppingBag, ChefHat, Sparkles, Camera } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { usePantry } from '../context/PantryContext';
 import { PantryShelf } from '../components/pantry/PantryShelf';
 import { IngredientPicker } from '../components/pantry/IngredientPicker';
 import { StyledButton } from '../components/common/StyledButton';
 
 export const PantryPage: React.FC = () => {
+  const { t } = useTranslation();
   const {
     pantryIngredients,
     availableIngredients,
@@ -38,12 +40,11 @@ export const PantryPage: React.FC = () => {
         <div className="relative z-10">
           <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider mb-1">
             <ShoppingBag className="w-4 h-4" />
-            <span>Kitchen Inventory</span>
+            <span>{t('pantryPage.inventoryBadge')}</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">My Pantry Shelf</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{t('pantryPage.title')}</h1>
           <p className="text-stone-400 text-sm mt-1 max-w-xl">
-            Manage and track the ingredients in your kitchen shelf. We use them to calculate
-            matching meals and empower smart AI suggestions.
+            {t('pantryPage.subtitle')}
           </p>
         </div>
 
@@ -54,20 +55,20 @@ export const PantryPage: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-brand-500 text-stone-950 font-extrabold text-xs shadow-lg shadow-brand-500/20 hover:scale-105 transition-all cursor-pointer"
           >
             <Camera className="w-4 h-4" />
-            <span>📸 Scan Fridge Photo</span>
+            <span>{t('pantryPage.scanFridgePhoto')}</span>
           </button>
 
           <Link to="/can-cook">
             <StyledButton $variant="primary" $size="md">
               <ChefHat className="w-4 h-4" />
-              <span>See Matching Recipes</span>
+              <span>{t('pantryPage.seeMatching')}</span>
             </StyledButton>
           </Link>
 
           <Link to="/ai-chef">
             <StyledButton $variant="sage" $size="md">
               <Sparkles className="w-4 h-4" />
-              <span>AI Chef Ideas</span>
+              <span>{t('pantryPage.aiChefIdeas')}</span>
             </StyledButton>
           </Link>
         </div>
@@ -84,19 +85,19 @@ export const PantryPage: React.FC = () => {
 
         {isConfirmingClear && (
           <div className="mt-3 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center justify-between">
-            <span>Are you sure you want to clear your entire pantry shelf?</span>
+            <span>{t('pantryPage.confirmClear')}</span>
             <div className="flex gap-2">
               <button
                 onClick={clearPantry}
                 className="px-3 py-1 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700 transition-colors"
               >
-                Yes, Clear All
+                {t('pantryPage.yesClearAll')}
               </button>
               <button
                 onClick={() => setIsConfirmingClear(false)}
                 className="px-3 py-1 bg-stone-200 text-stone-700 rounded-lg hover:bg-stone-300 transition-colors"
               >
-                Cancel
+                {t('pantryPage.cancel')}
               </button>
             </div>
           </div>

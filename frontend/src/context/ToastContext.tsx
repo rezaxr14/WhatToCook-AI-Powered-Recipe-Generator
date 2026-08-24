@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, AlertCircle, Info, Sparkles, X } from 'lucide-react';
 
@@ -42,8 +42,14 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const info = useCallback((msg: string, title?: string) => showToast(msg, 'info', title), [showToast]);
   const aiToast = useCallback((msg: string, title?: string) => showToast(msg, 'ai', title || 'AI Chef'), [showToast]);
 
+  // Stable context identity — toast helpers never invalidate consumers.
+  const value = useMemo<ToastContextValue>(
+    () => ({ showToast, success, error, info, aiToast }),
+    [showToast, success, error, info, aiToast]
+  );
+
   return (
-    <ToastContext.Provider value={{ showToast, success, error, info, aiToast }}>
+    <ToastContext.Provider value={value}>
       {children}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none">
         <AnimatePresence>

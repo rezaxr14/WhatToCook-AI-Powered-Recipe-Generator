@@ -1,6 +1,7 @@
 import { apiClient, getCsrfToken } from './client';
 import { UserPantry } from '../types/pantry';
 import { ScanFridgeResponse } from '../types/ingredient';
+import i18n from '../i18n';
 
 export interface PantryMutationResponse {
   message: string;
@@ -35,8 +36,10 @@ export const pantryApi = {
   scanFridgeImage: async (
     image: File | string,
     autoAdd: boolean = false,
-    provider: string = 'gemini'
+    provider: string = 'gemini',
+    language?: string
   ): Promise<ScanFridgeResponse> => {
+    const lang = language ?? i18n.language;
     if (typeof image === 'string') {
       // Base64 JSON payload
       return apiClient<ScanFridgeResponse>('/api/pantry/scan-image/', {
@@ -45,6 +48,7 @@ export const pantryApi = {
           image_base64: image,
           auto_add: autoAdd,
           provider,
+          language: lang,
         }),
       });
     } else {
@@ -53,6 +57,7 @@ export const pantryApi = {
       formData.append('image', image);
       formData.append('auto_add', autoAdd ? 'true' : 'false');
       formData.append('provider', provider);
+      formData.append('language', lang);
 
       const csrfToken = getCsrfToken();
       const response = await fetch('/api/pantry/scan-image/', {

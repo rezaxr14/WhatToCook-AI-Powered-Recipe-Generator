@@ -15,6 +15,7 @@ export interface RecipeIngredient {
 
 export interface ScannedIngredient {
   name: string;
+  display_name?: string;
   category: string;
   confidence: number;
   estimated_quantity?: string | null;

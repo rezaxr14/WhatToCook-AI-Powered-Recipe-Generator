@@ -1,15 +1,78 @@
 #!/bin/sh
 set -e
 
-echo "🚀 WhatToCook Backend Initializing..."
+ROLE="${1:-web}"
 
-# Run database migrations
-echo "📦 Applying database migrations..."
-python manage.py migrate --noinput
+echo "🍳 WhatToCook backend initializing (role: ${ROLE})..."
 
-# Automatically seed catalog recipes and ingredients
-echo "🍳 Automatically seeding ingredients catalog and gourmet recipes..."
-python manage.py seed_recipes || echo "⚠️ Seed warning (already seeded or non-fatal)"
+# ---------------------------------------------------------------
+# Wait until the database accepts connections.
+# Works for Postgres (Docker) and SQLite (bare-metal) alike.
+# ---------------------------------------------------------------
+echo "⏳ Waiting for the database to be ready..."
+i=0
+until python -c "
+import os, django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'WhatToCook.settings')
+django.setup()
+from django.db import connection
+connection.ensure_connection()
+" >/dev/null 2>&1; do
+    i=$((i + 1))
+    if [ "$i" -ge 60 ]; then
+        echo "❌ Database not reachable after 60 attempts. Giving up."
+        exit 1
+    fi
+    sleep 2
+done
+echo "✅ Database is up."
 
-echo "✨ Backend initialization complete. Starting server..."
-exec python manage.py runserver 0.0.0.0:8000
+# ---------------------------------------------------------------
+# Migrations + idempotent seed + static files (web role only;
+# celery/bot just wait for the web container's migrations via DB).
+# ---------------------------------------------------------------
+if [ "$ROLE" = "web" ]; then
+    echo "📦 Applying database migrations..."
+    python manage.py migrate --noinput
+
+    echo "🥕 Seeding ingredients & gourmet recipes (idempotent)..."
+    python manage.py seed_recipes || echo "⚠️ Seed skipped (already seeded or non-fatal)."
+
+    echo "🎨 Collecting static files..."
+    python manage.py collectstatic --noinput
+fi
+
+# ---------------------------------------------------------------
+# Hand off to the requested process.
+# ---------------------------------------------------------------
+case "$ROLE" in
+    web)
+        echo "🚀 Starting gunicorn on 0.0.0.0:8000..."
+        exec gunicorn WhatToCook.wsgi:application \
+            --bind 0.0.0.0:8000 \
+            --workers "${GUNICORN_WORKERS:-3}" \
+            --threads "${GUNICORN_THREADS:-2}" \
+            --timeout 120 \
+            --access-logfile - \
+            --error-logfile -
+        ;;
+    celery)
+        echo "🚀 Starting Celery worker..."
+        # Give the web role a head start on first-boot migrations.
+        sleep 5
+        exec python -m celery -A WhatToCook worker --loglevel=info --concurrency="${CELERY_CONCURRENCY:-2}"
+        ;;
+    bot)
+        if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "⚠️ TELEGRAM_BOT_TOKEN is empty. Telegram bot disabled; idling so 'docker compose up' stays healthy."
+            sleep infinity
+        fi
+        echo "🚀 Starting Telegram bot (long polling)..."
+        sleep 5
+        exec python manage.py run_telegram_bot
+        ;;
+    *)
+        echo "❌ Unknown role '${ROLE}'. Use: web | celery | bot"
+        exit 1
+        ;;
+esac

@@ -31,6 +31,7 @@ from .ai_service import (
     generate_recipe_detail_meta,
     generate_recipe_suggestions,
     generate_recipe_suggestions_meta,
+    normalize_language,
     scan_fridge_image,
     stream_recipe_generation,
 )
@@ -70,6 +71,66 @@ class RecipeViewSet(viewsets.ModelViewSet):
 class UserPantryViewSet(viewsets.ModelViewSet):
     queryset = UserPantry.objects.all()
     serializer_class = UserPantrySerializer
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def api_stats(request):
+    """Public platform counters for the landing page (Redis-cached for 60s)."""
+    from django.core.cache import cache
+
+    data = None
+    try:
+        data = cache.get("platform_stats")
+    except Exception as e:
+        # Cache backend unavailable (e.g. bare-metal run with Docker REDIS_URL):
+        # degrade to computing live counters instead of failing the request.
+        logger.warning("Stats cache read failure: %s", e)
+
+    if data is None:
+        data = {
+            "total_recipes": Recipe.objects.count(),
+            "total_ingredients": Ingredient.objects.count(),
+            "total_users": User.objects.filter(is_active=True).count(),
+        }
+        try:
+            cache.set("platform_stats", data, 60)
+        except Exception as e:
+            logger.warning("Stats cache write failure: %s", e)
+    return Response(data)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def api_health(request):
+    """Liveness/readiness probe used by Docker healthchecks and load balancers."""
+    checks = {"database": "down", "cache": "down"}
+    try:
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        checks["database"] = "ok"
+    except Exception as e:
+        logger.warning("Health check DB failure: %s", e)
+
+    try:
+        from django.core.cache import cache
+
+        cache.set("whattocook_health", "1", 10)
+        if cache.get("whattocook_health") == "1":
+            checks["cache"] = "ok"
+        else:
+            checks["cache"] = "degraded"
+            logger.warning("Health check cache roundtrip returned unexpected value.")
+    except Exception as e:
+        # Redis/cache is optional at runtime (Celery has fallbacks); stay healthy without it.
+        checks["cache"] = "degraded"
+        logger.warning("Health check cache failure: %s", e)
+
+    healthy = checks["database"] == "ok"
+    payload = {"status": "ok" if healthy else "error", "checks": checks}
+    return Response(payload, status=status.HTTP_200_OK if healthy else status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 # ==========================================
@@ -301,6 +362,7 @@ def api_pantry_scan_image(request):
     image_base64 = request.data.get("image_base64")
     auto_add = request.data.get("auto_add", False)
     provider = request.data.get("provider", DEFAULT_AI_PROVIDER)
+    language = request.data.get("language")
 
     if not image_file and not image_base64:
         return Response(
@@ -326,7 +388,7 @@ def api_pantry_scan_image(request):
         else:
             image_bytes = base64.b64decode(image_base64)
 
-    detected_items = scan_fridge_image(image_bytes, mime_type=mime_type, provider=provider)
+    detected_items = scan_fridge_image(image_bytes, mime_type=mime_type, provider=provider, language=language)
 
     added_names = []
     pantry_data = None
@@ -634,6 +696,7 @@ def ai_suggestions_api(request):
     model = request.data.get("model") if request.method == "POST" else request.GET.get("model")
     custom_ingredients = request.data.get("ingredients") if request.method == "POST" else None
     force_refresh = request.data.get("force_refresh", False) if request.method == "POST" else request.GET.get("force_refresh", False)
+    language = request.data.get("language") if request.method == "POST" else request.GET.get("language")
 
     if custom_ingredients and isinstance(custom_ingredients, list) and len(custom_ingredients) > 0:
         ingredients = [str(i).strip() for i in custom_ingredients if str(i).strip()]
@@ -649,7 +712,10 @@ def ai_suggestions_api(request):
         ingredients = ["Tomato", "Garlic", "Eggs", "Cheese", "Pasta"]
 
     ingredients_str = ", ".join(sorted([i.lower() for i in ingredients]))
-    ingredients_hash = hashlib.sha256(f"{ingredients_str}:{provider or 'default'}:{model or 'default'}".encode()).hexdigest()
+    lang_code = normalize_language(language) or ""
+    ingredients_hash = hashlib.sha256(
+        f"{ingredients_str}:{provider or 'default'}:{model or 'default'}:{lang_code}".encode()
+    ).hexdigest()
 
     # Check 24h cache unless force_refresh requested
     if not force_refresh:
@@ -671,7 +737,7 @@ def ai_suggestions_api(request):
 
     # Generate suggestions directly with metadata
     try:
-        recipes, model_used, rate_limited_models = generate_recipe_suggestions_meta(ingredients, provider=provider, model=model)
+        recipes, model_used, rate_limited_models = generate_recipe_suggestions_meta(ingredients, provider=provider, model=model, language=language)
         # Store in cache
         AISuggestionCache.objects.update_or_create(
             ingredients_hash=ingredients_hash,
@@ -689,7 +755,7 @@ def ai_suggestions_api(request):
     except Exception as e:
         # Fallback to Celery background task if direct call is slow or fails
         try:
-            task = generate_ai_suggestions_task.delay(ingredients, ingredients_hash, provider)
+            task = generate_ai_suggestions_task.delay(ingredients, ingredients_hash, provider, language)
             return Response({"status": "processing", "task_id": task.id})
         except Exception:
             # Return safe fallback recipes
@@ -709,8 +775,9 @@ def ai_recipe_detail_api(request, recipe_name):
     """Get full master chef recipe breakdown for an AI suggested dish."""
     provider = request.GET.get("provider")
     model = request.GET.get("model")
+    language = request.GET.get("language")
     try:
-        recipe_data, model_used, rate_limited_models = generate_recipe_detail_meta(recipe_name, provider=provider, model=model)
+        recipe_data, model_used, rate_limited_models = generate_recipe_detail_meta(recipe_name, provider=provider, model=model, language=language)
         return Response(recipe_data)
     except Exception as e:
         return Response({"error": f"Error generating recipe details: {e}"}, status=500)
@@ -731,6 +798,7 @@ def api_recipe_chat(request):
     history = request.data.get("history", [])
     provider = request.data.get("provider")
     model = request.data.get("model")
+    language = request.data.get("language")
 
     if not user_question:
         return Response({"error": "Message is required."}, status=400)
@@ -744,6 +812,7 @@ def api_recipe_chat(request):
             history=history,
             provider=provider,
             model=model,
+            language=language,
         )
         return Response(result)
     except Exception as e:
@@ -1089,9 +1158,10 @@ def api_ai_stream_recipe(request):
     """
     recipe_name = request.GET.get("recipe", "Chef's Special Creation")
     provider = request.GET.get("provider", DEFAULT_AI_PROVIDER)
+    language = request.GET.get("language")
 
     response = StreamingHttpResponse(
-        stream_recipe_generation(recipe_name, provider=provider),
+        stream_recipe_generation(recipe_name, provider=provider, language=language),
         content_type="text/event-stream"
     )
     response["Cache-Control"] = "no-cache"

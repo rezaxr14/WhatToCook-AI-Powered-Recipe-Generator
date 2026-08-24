@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import { AISuggestedDish, AIRecipeDetail, AIProvider, AIProvidersResponse, RecipeChatRequest, RecipeChatResponse, AIModelsResponse } from '../types/ai';
+import i18n from '../i18n';
 
 export interface AISuggestionsResponse {
   status: 'done' | 'processing';
@@ -32,10 +33,11 @@ export const aiApi = {
     provider?: AIProvider;
     model?: string;
     force_refresh?: boolean;
+    language?: string;
   }): Promise<AISuggestionsResponse> => {
     return apiClient<AISuggestionsResponse>('/api/ai/suggestions/', {
       method: 'POST',
-      body: JSON.stringify(payload || {}),
+      body: JSON.stringify({ language: i18n.language, ...payload }),
     });
   },
 
@@ -43,10 +45,11 @@ export const aiApi = {
     return apiClient<AISuggestionsResponse>(`/api/ai/task-status/${taskId}/`);
   },
 
-  getRecipeDetail: async (recipeName: string, provider?: AIProvider, model?: string): Promise<AIRecipeDetail & { model_used?: string; rate_limited_models?: string[] }> => {
+  getRecipeDetail: async (recipeName: string, provider?: AIProvider, model?: string, language?: string): Promise<AIRecipeDetail & { model_used?: string; rate_limited_models?: string[] }> => {
     const params = new URLSearchParams();
     if (provider) params.append('provider', provider);
     if (model) params.append('model', model);
+    params.append('language', language ?? i18n.language);
     const query = params.toString() ? `?${params.toString()}` : '';
     const url = `/api/ai/recipe/${encodeURIComponent(recipeName)}/${query}`;
     return apiClient<AIRecipeDetail & { model_used?: string; rate_limited_models?: string[] }>(url);
@@ -55,7 +58,7 @@ export const aiApi = {
   askRecipeChat: async (payload: RecipeChatRequest): Promise<RecipeChatResponse> => {
     return apiClient<RecipeChatResponse>('/api/ai/recipe-chat/', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ language: i18n.language, ...payload }),
     });
   },
 };

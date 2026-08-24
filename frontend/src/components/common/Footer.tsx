@@ -1,8 +1,12 @@
 import React from 'react';
 import { ChefHat, Sparkles, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 export const Footer: React.FC = () => {
+  const { t } = useTranslation();
+
   return (
     <footer className="bg-stone-900 text-stone-300 border-t border-stone-800 mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -16,8 +20,7 @@ export const Footer: React.FC = () => {
               <span className="font-bold text-xl text-white tracking-tight">WhatToCook</span>
             </div>
             <p className="text-stone-400 text-sm leading-relaxed max-w-sm">
-              Intelligent culinary assistant powered by Smart Generative AI.
-              Turn what's in your fridge into unforgettable meals with zero waste.
+              {t('footer.blurb')}
             </p>
             <div className="flex items-center gap-2 text-xs font-semibold text-stone-300">
               <Sparkles className="w-4 h-4 text-amber-400" />
@@ -27,21 +30,21 @@ export const Footer: React.FC = () => {
 
           {/* Quick Links */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold text-stone-200 uppercase tracking-wider">Features</h4>
+            <h4 className="text-xs font-bold text-stone-200 uppercase tracking-wider">{t('footer.colProduct')}</h4>
             <ul className="space-y-2 text-sm text-stone-400 font-medium">
               <li>
                 <Link to="/can-cook" className="hover:text-white transition-colors">
-                  Can Cook Matcher
+                  {t('nav.canCook')}
                 </Link>
               </li>
               <li>
                 <Link to="/ai-chef" className="hover:text-white transition-colors">
-                  AI Chef Studio
+                  {t('nav.aiChef')}
                 </Link>
               </li>
               <li>
                 <Link to="/pantry" className="hover:text-white transition-colors">
-                  Vision Fridge Scanner
+                  {t('features.scannerT')}
                 </Link>
               </li>
             </ul>
@@ -49,7 +52,7 @@ export const Footer: React.FC = () => {
 
           {/* Tech stack highlights */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold text-stone-200 uppercase tracking-wider">Powered By</h4>
+            <h4 className="text-xs font-bold text-stone-200 uppercase tracking-wider">{t('footer.colTech')}</h4>
             <ul className="space-y-2 text-sm text-stone-400 font-medium">
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
@@ -63,19 +66,18 @@ export const Footer: React.FC = () => {
                 <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
                 <span>Smart Generative AI API</span>
               </li>
-              <li className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                <span>Google AI Studio Gemini API</span>
-              </li>
             </ul>
           </div>
         </div>
 
         <div className="pt-8 border-t border-stone-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-stone-500">
-          <p>© {new Date().getFullYear()} WhatToCook AI. All rights reserved.</p>
-          <p className="flex items-center gap-1">
-            Made with <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> for passionate home chefs everywhere.
-          </p>
+          <p>© {new Date().getFullYear()} WhatToCook AI. {t('footer.rights')}</p>
+          <div className="flex items-center gap-4">
+            <LanguageSwitcher />
+            <p className="hidden sm:flex items-center gap-1">
+              Made with <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> for passionate home chefs everywhere.
+            </p>
+          </div>
         </div>
       </div>
     </footer>

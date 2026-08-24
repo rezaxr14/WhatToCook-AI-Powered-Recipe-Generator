@@ -36,9 +36,11 @@ yarn-debug.log*
 yarn-error.log*
 
 # Database & Storage
-!db.sqlite3
+# NOTE: db.sqlite3 IS intentionally committed as the cold-start seeded
+# database, so the negation MUST come after the ignore rules.
 *.sqlite3
 *.db
+!db.sqlite3
 
 # Screenshots, Test Outputs & Temp Media
 artifacts_screenshots/

@@ -1,6 +1,6 @@
 # 🍳 WhatToCook — AI-Powered Intelligent Recipe Studio & Smart Pantry
 
-> **Zero Food Waste AI Recipe Engine**, visual camera ingredient scanner powered by **Generative AI**, real-time culinary generation streaming, interactive Telegram bot assistant, smart grocery lists with 1-click WhatsApp & Telegram exports, dynamic portion scaling, and an offline Progressive Web App (PWA).
+> **Zero Food Waste AI Recipe Engine**, visual camera ingredient scanner powered by **Generative AI**, real-time culinary generation streaming, interactive Telegram bot assistant, smart grocery lists with 1-click WhatsApp & Telegram exports, dynamic portion scaling, an offline Progressive Web App (PWA), and a **5-language interface (English, Türkçe, فارسی, العربية, Español)** with full RTL support.
 
 [![Django 5.2](https://img.shields.io/badge/Django-5.2-092E20?style=for-the-badge&logo=django&logoColor=white)](https://djangoproject.com/)
 [![React 18](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
@@ -15,12 +15,14 @@
 ```
 WhatToCook Ecosystem
 ├── 🌐 React 18 + TypeScript + TailwindCSS + TanStack Query Frontend (Vite)
-├── ⚡ Django 5.2 REST Framework API Backend (Python 3.11)
+│   └── 🧊 React Three Fiber 3D hero · react-i18next (EN/TR/FA/AR/ES + RTL) · PWA
+├── 🛡️ nginx reverse proxy → serves the SPA build, proxies /api /admin /static /media /legacy
+├── ⚡ Django 5.2 REST Framework API Backend (Python 3.11, gunicorn + WhiteNoise)
 ├── 🤖 Multimodal AI Vision & Generative Recipe Streaming Engine
 ├── 💬 Telegram Bot Webhook & Interactive Pantry Handshake
 ├── 📱 Smart Grocery Exporter (WhatsApp, Telegram, Markdown, Print)
 ├── 🗄️ PostgreSQL 15 (Docker) / SQLite3 (Auto-fallback local dev)
-└── 🚀 Redis 7 + Celery Task Queue
+└── 🚀 Redis 7 → Celery task queue + Django cache (stats, health probes)
 ```
 
 ### ✨ Core Features
@@ -32,6 +34,7 @@ WhatToCook Ecosystem
 6. **⚖️ Dynamic Portion Scaler (1x, 2x, 4x, 6x, 8x)**: Scalable ingredient measurements (e.g. `2 tbsp`, `250g`, `1/2 cup`) dynamically recalibrate portions in real-time without boundary overflows.
 7. **💡 AI Substitution Assistant**: Missing buttermilk, eggs, heavy cream, or parmesan? Instant culinary swaps and ratio tips.
 8. **📱 Progressive Web App (PWA)**: Installable on iOS & Android with offline pantry viewing.
+9. **🌍 Multilingual UI (EN / TR / FA / AR / ES)**: First-visit language chooser, floating quick-switcher and footer dropdown; Persian & Arabic get full right-to-left layouts and dedicated fonts (Vazirmatn, Noto Sans Arabic).
 
 ---
 
@@ -48,19 +51,20 @@ cd WhatToCook-AI-Powered-Recipe-Generator
 cp .env.example .env
 # Edit .env and paste your GEMINI_API_KEY (from https://aistudio.google.com)
 
-# if you dont use localhost:10808 to connect to internet use the docker-compose.dev.yml instead(just remove other compose file and rename this one)
+# (If your network requires an HTTP proxy for internet egress, add your overrides:
+#  docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d --build)
 
 # 3. Build and launch all lightweight containers
+#    (migrations, idempotent seeding and collectstatic run automatically on boot)
 docker compose up -d --build
-
-# 4. Seed the rich recipe database (13+ gourmet dishes with HD images)
-docker compose exec web python manage.py seed_recipes
 ```
 
 ### 🌐 Access Points:
-- **Frontend Web App**: [http://localhost:5173](http://localhost:5173)
+- **Frontend Web App**: [http://localhost:4173](http://localhost:4173)
 - **Django REST API**: [http://localhost:8000/api/](http://localhost:8000/api/)
-- **Django Admin Panel**: [http://localhost:8000/admin/](http://localhost:8000/admin/)
+- **Landing Page Health**: [http://localhost:8000/api/health/](http://localhost:8000/api/health/)
+- **Django Admin Panel**: [http://localhost:8000/admin/](http://localhost:8000/admin/) or [http://localhost:4173/admin/](http://localhost:4173/admin/)
+- **Legacy Server-Rendered Pages**: [http://localhost:8000/legacy/](http://localhost:8000/legacy/)
 
 ---
 
@@ -77,6 +81,10 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# IMPORTANT: if your .env has DB_HOST set (Docker config), force SQLite locally:
+#   PowerShell:  $env:USE_POSTGRES="false"
+#   bash:        USE_POSTGRES=false
 
 # Run migrations & seed recipes
 python manage.py migrate
@@ -104,12 +112,28 @@ npm run dev
 Run the comprehensive Django REST API test suite:
 
 ```bash
-python manage.py test GetFood
+# Bare-metal (SQLite): make sure Postgres is not forced via .env
+USE_POSTGRES=false python manage.py test GetFood tests
 ```
 
-Target: **100% passing tests (19/19)** covering:
+Target: **100% passing tests** covering:
 - Authentication & Auto-Pantry Creation
 - Pantry Ingredient Operations & Optimistic Handshakes
 - Zero-Waste Match Engine Algorithms (100% & Partial matches)
 - Multimodal Vision Scanner & Fallback Resiliency
 - Live AI Recipe Generation & Streaming Endpoints
+- Platform endpoints (/api/stats/, /api/health/) & legacy route namespacing
+
+Frontend production build + end-to-end Playwright suite (22 tests across desktop, tablet and iPhone viewports, including i18n/RTL and responsive navbar coverage):
+
+```bash
+cd frontend
+npm run build          # typecheck + vite build
+npm run test:e2e       # starts Vite automatically; backend on :8000 required
+```
+
+---
+
+## 📄 License
+
+Copyright © 2026. All rights reserved. This project is proprietary software — see [LICENSE.md](LICENSE.md) for the full license terms.

@@ -48,6 +48,48 @@ def _is_rate_limit_error(error_msg: str) -> bool:
     )
 
 
+# Human languages the AI can be instructed to answer in (mirrors the SPA i18n set).
+AI_RESPONSE_LANGUAGES = {
+    "en": "English",
+    "tr": "Turkish",
+    "fa": "Persian (Farsi)",
+    "ar": "Arabic",
+    "es": "Spanish",
+}
+
+
+def normalize_language(language: str = None) -> str | None:
+    """Normalize a BCP-47-ish tag ('fa-IR', 'en-US') to a supported base code."""
+    if not language:
+        return None
+    code = str(language).split("-")[0].strip().lower()
+    return code if code in AI_RESPONSE_LANGUAGES else None
+
+
+def _language_instruction(language: str = None) -> str:
+    """
+    Strict directive forcing all human-readable output into the user's UI language.
+    JSON keys stay English so downstream parsing is unaffected.
+    """
+    code = normalize_language(language)
+    if not code or code == "en":
+        return ""
+    lang_name = AI_RESPONSE_LANGUAGES[code]
+    return (
+        f"LANGUAGE REQUIREMENT: You MUST respond entirely in {lang_name}. "
+        f"Write ALL human-readable text (titles, dish names, descriptions, steps, tips, "
+        f"quantities, categories) in {lang_name}. For JSON outputs keep the JSON keys "
+        f"exactly as specified (English keys) but every string VALUE must be written "
+        f"in {lang_name}. Do not mix English words into the values."
+    )
+
+
+def _apply_language(system_instruction: str, language: str = None) -> str:
+    """Merge the language directive into any system instruction."""
+    parts = [p.strip() for p in [system_instruction, _language_instruction(language)] if p and p.strip()]
+    return " ".join(parts)
+
+
 def _call_gemini_with_meta(
     prompt: str,
     system_instruction: str = "",
@@ -176,6 +218,104 @@ def _call_gemini(
     return text
 
 
+def _call_gemini_vision(
+    prompt: str,
+    image_bytes: bytes,
+    mime_type: str = "image/jpeg",
+    system_instruction: str = "",
+) -> str:
+    """
+    Multimodal Gemini call (text + image) with the same resilient
+    multi-model fallback strategy as the text-only path.
+    """
+    api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY is not configured in .env or settings.")
+    if not image_bytes:
+        raise ValueError("No image data supplied for vision analysis.")
+
+    candidate_models = []
+    if GEMINI_MODEL and GEMINI_MODEL not in candidate_models:
+        candidate_models.append(GEMINI_MODEL)
+    for fallback_m in GEMINI_FALLBACK_MODELS:
+        if fallback_m not in candidate_models:
+            candidate_models.append(fallback_m)
+
+    last_err = None
+
+    # 1. Try google.genai SDK
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+
+        for candidate in candidate_models:
+            try:
+                config = types.GenerateContentConfig(
+                    temperature=0.4,
+                    system_instruction=system_instruction if system_instruction else None,
+                )
+                resp = client.models.generate_content(
+                    model=candidate,
+                    contents=[
+                        prompt,
+                        types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                    ],
+                    config=config,
+                )
+                if resp and resp.text:
+                    return resp.text.strip()
+            except Exception as ex:
+                logger.warning("Gemini Vision SDK attempt with model '%s' failed: %s", candidate, ex)
+                last_err = ex
+                continue
+    except ImportError:
+        pass
+
+    # 2. REST API Fallback
+    encoded = base64.b64encode(image_bytes).decode("utf-8")
+    for candidate in candidate_models:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{candidate}:generateContent?key={api_key}"
+            payload = {
+                "contents": [
+                    {
+                        "parts": [
+                            {"text": prompt},
+                            {"inline_data": {"mime_type": mime_type, "data": encoded}},
+                        ]
+                    }
+                ],
+                "generationConfig": {"temperature": 0.4},
+            }
+            if system_instruction:
+                payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
+
+            response = requests.post(
+                url,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=45,
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+                    if text:
+                        return text
+            else:
+                logger.warning("Gemini Vision REST model '%s' failed with status %s", candidate, response.status_code)
+        except Exception as ex:
+            logger.warning("Gemini Vision REST attempt with model '%s' failed: %s", candidate, ex)
+            last_err = ex
+            continue
+
+    raise ValueError(f"All Gemini vision models failed. Last error: {last_err}")
+
+
 
 def _call_lmstudio(prompt: str, system_instruction: str = "") -> str:
     """Call local LM Studio OpenAI-compatible endpoint."""
@@ -258,7 +398,7 @@ def _fallback_recipe_suggestions(ingredients: list[str]) -> list[dict]:
     return presets
 
 
-def generate_recipe_suggestions_meta(ingredients: list[str], provider: str = None, model: str = None) -> tuple[list[dict], str, list[str]]:
+def generate_recipe_suggestions_meta(ingredients: list[str], provider: str = None, model: str = None, language: str = None) -> tuple[list[dict], str, list[str]]:
     """Generate 4-6 recipe ideas from pantry ingredients with model usage metadata."""
     if not provider:
         provider = DEFAULT_AI_PROVIDER
@@ -270,7 +410,10 @@ def generate_recipe_suggestions_meta(ingredients: list[str], provider: str = Non
         "'name' (str), 'short_description' (str), 'cuisine' (str), 'difficulty' (Easy/Medium/Hard), "
         "'prep_time' (e.g. '25 mins'), 'image_hint' (e.g. 'pasta', 'chicken', 'salad', 'soup')."
     )
-    system_instruction = "You are a professional culinary chef. Always respond with clean, valid JSON without markdown formatting."
+    system_instruction = _apply_language(
+        "You are a professional culinary chef. Always respond with clean, valid JSON without markdown formatting.",
+        language,
+    )
 
     content = ""
     model_used = model or (GEMINI_MODEL if provider == "gemini" else MODEL_NAME)
@@ -328,13 +471,13 @@ def generate_recipe_suggestions_meta(ingredients: list[str], provider: str = Non
     return recipes, model_used, rate_limited_models
 
 
-def generate_recipe_suggestions(ingredients: list[str], provider: str = None, model: str = None) -> list[dict]:
+def generate_recipe_suggestions(ingredients: list[str], provider: str = None, model: str = None, language: str = None) -> list[dict]:
     """Generate 4-6 recipe ideas from pantry ingredients (backward compatible wrapper)."""
-    recipes, _, _ = generate_recipe_suggestions_meta(ingredients, provider=provider, model=model)
+    recipes, _, _ = generate_recipe_suggestions_meta(ingredients, provider=provider, model=model, language=language)
     return recipes
 
 
-def generate_recipe_detail_meta(recipe_name: str, provider: str = None, model: str = None) -> tuple[dict, str, list[str]]:
+def generate_recipe_detail_meta(recipe_name: str, provider: str = None, model: str = None, language: str = None) -> tuple[dict, str, list[str]]:
     """Generate detailed step-by-step cooking guide with ingredients, instructions, and model metadata."""
     if not provider:
         provider = DEFAULT_AI_PROVIDER
@@ -352,7 +495,10 @@ def generate_recipe_detail_meta(recipe_name: str, provider: str = None, model: s
         "- 'nutrition': object with {'calories': string, 'protein': string, 'carbs': string, 'fat': string}\n"
         "Return ONLY raw JSON, no markdown formatting."
     )
-    system_instruction = "You are a professional chef. Always output valid structured JSON without markdown wrappers."
+    system_instruction = _apply_language(
+        "You are a professional chef. Always output valid structured JSON without markdown wrappers.",
+        language,
+    )
 
     content = ""
     model_used = model or (GEMINI_MODEL if provider == "gemini" else MODEL_NAME)
@@ -436,9 +582,9 @@ def generate_recipe_detail_meta(recipe_name: str, provider: str = None, model: s
     return recipe_data, model_used, rate_limited_models
 
 
-def generate_recipe_detail(recipe_name: str, provider: str = None, model: str = None) -> dict:
+def generate_recipe_detail(recipe_name: str, provider: str = None, model: str = None, language: str = None) -> dict:
     """Generate detailed step-by-step cooking guide (backward compatible wrapper)."""
-    data, _, _ = generate_recipe_detail_meta(recipe_name, provider=provider, model=model)
+    data, _, _ = generate_recipe_detail_meta(recipe_name, provider=provider, model=model, language=language)
     return data
 
 
@@ -457,23 +603,38 @@ def _fallback_fridge_scan() -> list[dict]:
     ]
 
 
-def scan_fridge_image(image_bytes: bytes, mime_type: str = "image/jpeg", provider: str = None) -> list[dict]:
+def scan_fridge_image(image_bytes: bytes, mime_type: str = "image/jpeg", provider: str = None, language: str = None) -> list[dict]:
     """
     Analyze image of a fridge/pantry/groceries using Gemini Vision.
     Returns structured list of detected ingredients.
+    'name' stays canonical English (safe for DB + recipe matching);
+    'display_name' is the localized label when a non-English UI language is set.
     """
     if not provider:
         provider = DEFAULT_AI_PROVIDER
+
+    lang_code = normalize_language(language)
+    display_name_rule = ""
+    system_instruction = _apply_language(
+        "You are an expert culinary AI and kitchen computer vision assistant. Always respond with clean, valid JSON.",
+        language,
+    )
+    if lang_code and lang_code != "en":
+        display_name_rule = (
+            f"\n- 'display_name': the same ingredient name translated into {AI_RESPONSE_LANGUAGES[lang_code]} "
+            "(this is what the user sees in their UI)"
+        )
 
     prompt = (
         "You are an expert culinary AI and kitchen computer vision assistant. "
         "Analyze this image of a refrigerator, kitchen pantry, grocery haul, or countertop. "
         "Identify all visible food ingredients, fresh produce, dairy, meats, seasonings, condiments, and groceries. "
         "Return ONLY a clean JSON array with objects containing:\n"
-        "- 'name': standardized singular ingredient name in Title Case (e.g. 'Egg', 'Tomato', 'Cheddar Cheese', 'Milk', 'Bell Pepper', 'Garlic', 'Chicken Breast', 'Avocado', 'Butter', 'Onion', 'Lemon')\n"
-        "- 'category': one of ['Produce', 'Dairy & Eggs', 'Meat & Seafood', 'Grains & Pasta', 'Pantry & Spices', 'Condiments', 'Bakery', 'Beverage', 'Other']\n"
+        "- 'name': standardized singular ingredient name in English Title Case (e.g. 'Egg', 'Tomato', 'Cheddar Cheese', 'Milk', 'Bell Pepper', 'Garlic', 'Chicken Breast', 'Avocado', 'Butter', 'Onion', 'Lemon')\n"
+        f"- 'category': one of ['Produce', 'Dairy & Eggs', 'Meat & Seafood', 'Grains & Pasta', 'Pantry & Spices', 'Condiments', 'Bakery', 'Beverage', 'Other']{display_name_rule}\n"
         "- 'confidence': float between 0.0 and 1.0 (estimated confidence of detection)\n"
         "- 'estimated_quantity': string or null (e.g. '6 eggs', '2 bottles', '1 bag')\n"
+        "The 'name' field MUST always be in English regardless of any other language requirement. "
         "Return ONLY the JSON array, no conversational text or markdown code blocks."
     )
 
@@ -482,10 +643,10 @@ def scan_fridge_image(image_bytes: bytes, mime_type: str = "image/jpeg", provide
 
     try:
         if provider == "gemini":
-            content = _call_gemini_vision(prompt, image_bytes, mime_type=mime_type)
+            content = _call_gemini_vision(prompt, image_bytes, mime_type=mime_type, system_instruction=system_instruction)
         else:
             # If provider is not gemini, attempt gemini vision or fallback
-            content = _call_gemini_vision(prompt, image_bytes, mime_type=mime_type)
+            content = _call_gemini_vision(prompt, image_bytes, mime_type=mime_type, system_instruction=system_instruction)
     except Exception as e:
         logger.warning(f"Gemini Vision scan encountered issue: {e}. Utilizing culinary vision fallback.")
 
@@ -517,17 +678,21 @@ def scan_fridge_image(image_bytes: bytes, mime_type: str = "image/jpeg", provide
     for item in detected_items:
         if isinstance(item, dict) and item.get("name"):
             name = item["name"].strip().title()
-            sanitized.append({
+            entry = {
                 "name": name,
                 "category": item.get("category", "Produce"),
                 "confidence": float(item.get("confidence", 0.9)),
-                "estimated_quantity": item.get("estimated_quantity")
-            })
+                "estimated_quantity": item.get("estimated_quantity"),
+            }
+            display_name = str(item.get("display_name") or "").strip()
+            if display_name:
+                entry["display_name"] = display_name
+            sanitized.append(entry)
 
     return sanitized
 
 
-def stream_recipe_generation(recipe_name: str, provider: str = None):
+def stream_recipe_generation(recipe_name: str, provider: str = None, language: str = None):
     """
     Stream live recipe generation token-by-token using Server-Sent Events (SSE).
     Yields SSE formatted chunks: 'data: {"chunk": "..."}\n\n'
@@ -540,6 +705,10 @@ def stream_recipe_generation(recipe_name: str, provider: str = None):
         "Include a description, cooking time, ingredients with measurements, sequential numbered cooking steps with chef tips, "
         "and a calorie & macro estimate. Format cleanly."
     )
+    system_instruction = _apply_language(
+        "You are a Michelin-star master chef writing a beautiful, clearly formatted recipe.",
+        language,
+    )
 
     api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
 
@@ -549,8 +718,10 @@ def stream_recipe_generation(recipe_name: str, provider: str = None):
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={api_key}"
             payload = {
                 "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.7}
+                "generationConfig": {"temperature": 0.7},
             }
+            if system_instruction:
+                payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
 
             with requests.post(url, json=payload, headers={"Content-Type": "application/json"}, stream=True, timeout=60) as resp:
                 if resp.status_code == 200:
@@ -614,6 +785,7 @@ def ask_recipe_chat(
     history: list[dict] = None,
     provider: str = "gemini",
     model: str = None,
+    language: str = None,
 ) -> dict:
     """
     Interactive AI Sous-Chef Chat Q&A tailored specifically to a dish.
@@ -625,7 +797,7 @@ def ask_recipe_chat(
     ing_str = json.dumps(ingredients) if isinstance(ingredients, (list, dict)) else str(ingredients or "")
     inst_str = json.dumps(instructions) if isinstance(instructions, (list, dict)) else str(instructions or "")
 
-    system_instruction = (
+    system_instruction = _apply_language(
         f"You are the AI Executive Sous-Chef for the recipe '{recipe_name}'.\n"
         f"Recipe Context:\n"
         f"- Ingredients: {ing_str}\n"
@@ -633,7 +805,8 @@ def ask_recipe_chat(
         "Your role: Warmly, concisely, and expertly answer the home cook's questions about this specific recipe.\n"
         "Guide them on ingredient substitutions, flavor boosts, cooking techniques, wine/beverage pairings, "
         "dietary conversions (vegan, keto, gluten-free), air-fryer/instant pot adaptations, storage tips, or heat levels.\n"
-        "Keep answers helpful, engaging, culinary-sound, and formatted nicely with markdown bullet points if listing steps or items."
+        "Keep answers helpful, engaging, culinary-sound, and formatted nicely with markdown bullet points if listing steps or items.",
+        language,
     )
 
     # Build conversation context

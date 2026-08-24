@@ -2,7 +2,7 @@ import json
 import base64
 from io import BytesIO
 from django.contrib.auth.models import User
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -299,3 +299,51 @@ class TelegramBotAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "ingredient_added")
         self.assertTrue(self.pantry.ingredients.filter(name="Olive Oil").exists())
+
+
+@override_settings(
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "platform-endpoint-tests",
+        }
+    }
+)
+class PlatformEndpointTests(TestCase):
+    """
+    Uses a hermetic in-memory cache so runs stay independent of any live
+    REDIS_URL configured in the environment (e.g. Docker's redis://redis:6379).
+    """
+
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()  # stats are cached; isolate per test
+        self.client = APIClient()
+        Ingredient.objects.create(name="Tomato", calories_per_100g=18)
+        recipe = Recipe.objects.create(name="Test Soup", description="Warm soup")
+        recipe.ingredients.add(Ingredient.objects.first())
+
+    def test_api_stats_public_counters(self):
+        response = self.client.get(reverse("api_stats"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["total_recipes"], 1)
+        self.assertEqual(response.data["total_ingredients"], 1)
+
+    def test_api_stats_includes_active_users(self):
+        User.objects.create_user(username="active_chef", password="pass12345")
+        User.objects.create_user(username="ghost_chef", password="pass12345", is_active=False)
+        response = self.client.get(reverse("api_stats"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["total_users"], 1)
+
+    def test_api_health_reports_database_ok(self):
+        response = self.client.get(reverse("api_health"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "ok")
+        self.assertEqual(response.data["checks"]["database"], "ok")
+
+    def test_legacy_html_routes_namespaced(self):
+        res_index = self.client.get(reverse("index"))
+        self.assertEqual(res_index.status_code, status.HTTP_200_OK)
+        self.assertTemplateUsed(res_index, "GetFood/index.html")

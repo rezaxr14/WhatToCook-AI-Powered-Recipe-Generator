@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { User, AuthState } from '../types/auth';
 import { authApi } from '../api/authApi';
 import { useToast } from './ToastContext';
@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     refreshUser();
   }, [refreshUser]);
 
-  const login = async (credentials: { username: string; password: string }) => {
+  const login = useCallback(async (credentials: { username: string; password: string }) => {
     setIsLoading(true);
     try {
       const res = await authApi.login(credentials);
@@ -54,9 +54,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [success, error]);
 
-  const signup = async (payload: { username: string; password: string; email?: string }) => {
+  const signup = useCallback(async (payload: { username: string; password: string; email?: string }) => {
     setIsLoading(true);
     try {
       const res = await authApi.signup(payload);
@@ -69,9 +69,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [success, error]);
 
-  const demoLogin = async () => {
+  const demoLogin = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await authApi.demoLogin();
@@ -83,9 +83,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [success, error]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await authApi.logout();
       setUser(null);
@@ -94,24 +94,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (err: any) {
       error('Logout failed.', 'Error');
     }
-  };
+  }, [info, error]);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated,
-        isLoading,
-        login,
-        signup,
-        logout,
-        demoLogin,
-        refreshUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  // Stable context identity — auth state consumers only re-render on real changes.
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      isAuthenticated,
+      isLoading,
+      login,
+      signup,
+      logout,
+      demoLogin,
+      refreshUser,
+    }),
+    [user, isAuthenticated, isLoading, login, signup, logout, demoLogin, refreshUser]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = (): AuthContextValue => {
