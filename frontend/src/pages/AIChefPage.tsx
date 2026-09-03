@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Sparkles, ChefHat, Clock, ArrowRight, RefreshCw, ShoppingBag } from 'lucide-react';
@@ -10,7 +10,7 @@ import { StyledButton } from '../components/common/StyledButton';
 import { StyledCard } from '../components/common/StyledCard';
 import { LoadingChef } from '../components/common/LoadingChef';
 import { AIProviderSwitcher } from '../components/common/AIProviderSwitcher';
-import { getDishImageUrl } from '../utils/imageUtils';
+import { assignUniqueDishPhotos } from '../utils/imageUtils';
 
 export const AIChefPage: React.FC = () => {
   const { t } = useTranslation();
@@ -25,6 +25,10 @@ export const AIChefPage: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<AISuggestedDish[]>([]);
   const [generatedProvider, setGeneratedProvider] = useState<string>('');
+  // One distinct, stable photo per suggestion — even when several dish names
+  // hit the same keyword (e.g. three different "pasta…" suggestions) or land
+  // on the same fallback photo, no two cards on this page ever look alike.
+  const dishPhotos = useMemo(() => assignUniqueDishPhotos(suggestions), [suggestions]);
 
   const toggleIngredient = (name: string) => {
     if (selectedIngredients.includes(name)) {
@@ -242,14 +246,17 @@ export const AIChefPage: React.FC = () => {
                   onClick={() => navigate(detailUrl)}
                   className="group flex flex-col justify-between h-full bg-white cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
                 >
-                  {/* Dish Photo */}
+                  {/* Dish Photo — one unique photo per dish on the page */}
                   <div className="relative h-48 w-full overflow-hidden bg-stone-100">
                     <img
-                      src={getDishImageUrl(dish.name, dish.image)}
+                      src={dishPhotos[index]}
                       alt={dish.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = getDishImageUrl(dish.name);
+                        const fallback = dishPhotos[(index + 1) % dishPhotos.length];
+                        if (fallback && (e.target as HTMLImageElement).src !== fallback) {
+                          (e.target as HTMLImageElement).src = fallback;
+                        }
                       }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-stone-900/70 via-transparent to-transparent opacity-80" />

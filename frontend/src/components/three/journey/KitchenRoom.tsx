@@ -323,13 +323,13 @@ const KitchenRoom: React.FC = () => {
         {/* Interior cavity (visible when the door opens) */}
         <mesh position={[0, 1.75, 0.02]}>
           <boxGeometry args={[1.5, 3.28, 1.0]} />
-          <meshStandardMaterial color="#f7efe2" emissive="#ffedc9" emissiveIntensity={0.7} side={THREE.BackSide} />
+          <meshStandardMaterial color="#f7efe2" emissive="#ffedc9" emissiveIntensity={0.55} side={THREE.BackSide} />
         </mesh>
         {/* Shelves */}
         {[0.85, 1.7, 2.5].map((y) => (
           <mesh key={y} position={[0, y, 0.02]}>
             <boxGeometry args={[1.44, 0.025, 0.92]} />
-            <meshPhysicalMaterial color="#eef0f2" roughness={0.15} clearcoat={1} transparent opacity={0.85} />
+            <meshPhysicalMaterial color="#eef0f2" roughness={0.32} clearcoat={0.5} transparent opacity={0.82} />
           </mesh>
         ))}
 

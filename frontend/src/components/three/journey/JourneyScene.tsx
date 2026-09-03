@@ -97,12 +97,14 @@ const CameraRig: React.FC = () => {
       pointer.y += (0 - pointer.y) * Math.min(1, delta * 2);
     }
 
-    // Whisker-soft handheld life during active chapters
-    if (!reduced.current && p > 0.2) {
+    // Whisker-soft handheld life during active chapters — deliberately held
+    // back for the fridge close-up (p .2–.4) and kept to one slow, smooth
+    // harmonic so bright interiors never shimmer or look like they flicker.
+    if (!reduced.current && p > 0.4) {
       _sway.set(
-        Math.sin(t * 1.3) * 0.006 + Math.sin(t * 2.7) * 0.004,
-        Math.cos(t * 1.1) * 0.005,
-        Math.sin(t * 0.9) * 0.004
+        Math.sin(t * 1.05) * 0.0045,
+        Math.cos(t * 0.9) * 0.0035,
+        Math.sin(t * 0.75) * 0.003
       );
       pos.add(_sway);
     }
@@ -193,15 +195,12 @@ const FridgeLabels: React.FC = () => {
   const chip = CHIP_CLASS;
   return (
     <>
-      {/* Top shelf (milk / eggs / cheese) */}
+      {/* Top shelf (milk / eggs) */}
       <FadeHtml position={[2.94, 2.58, -2.5]} window={[0.215, 0.245, 0.3, 0.33]} distanceFactor={5}>
         <ShelfTag chip={chip} label={t('story.ingMilk')} />
       </FadeHtml>
       <FadeHtml position={[2.18, 2.56, -2.5]} window={[0.225, 0.255, 0.3, 0.33]} distanceFactor={5}>
         <ShelfTag chip={chip} label={t('story.ingEggs')} />
-      </FadeHtml>
-      <FadeHtml position={[1.7, 2.56, -2.5]} window={[0.235, 0.265, 0.3, 0.33]} distanceFactor={5}>
-        <ShelfTag chip={chip} label={t('story.ingCheese')} />
       </FadeHtml>
       {/* Middle shelf (tomatoes) */}
       <FadeHtml position={[2.16, 1.86, -2.5]} window={[0.245, 0.275, 0.305, 0.335]} distanceFactor={5}>

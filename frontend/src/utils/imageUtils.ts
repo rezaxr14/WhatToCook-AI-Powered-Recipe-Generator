@@ -8,8 +8,10 @@ const DISH_PHOTO_MAP: Record<string, string> = {
   // Desserts & Sweets
   ice_cream: 'https://images.unsplash.com/photo-1497034825429-c343d7c6a68f?auto=format&fit=crop&w=800&q=80',
   gelato: 'https://images.unsplash.com/photo-1560008581-09826d1de69e?auto=format&fit=crop&w=800&q=80',
-  cake: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=80',
+  // NOTE: order matters — more specific names must precede generic ones,
+  // otherwise "cheesecake" would match the generic "cake" photo.
   cheesecake: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&w=800&q=80',
+  cake: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=80',
   tiramisu: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&w=800&q=80',
   crepe: '/media/recipes/banana_crepes.jpg',
   waffle: 'https://images.unsplash.com/photo-1562376552-0d160a2f238d?auto=format&fit=crop&w=800&q=80',
@@ -86,4 +88,44 @@ export function getDishImageUrl(dishName: string, existingUrl?: string): string 
   }
   const idx = Math.abs(hash) % DEFAULT_GOURMET_PHOTOS.length;
   return DEFAULT_GOURMET_PHOTOS[idx];
+}
+
+/**
+ * Assign a photo URL to every dish in a list, guaranteeing that no two
+ * DIFFERENT dishes on the same page share a photo — even when their names
+ * collide on the same keyword (e.g. three "pasta…" suggestions) or their
+ * keyword hashes hit the same fallback. Keeps a dish's natural photo when
+ * it is unique; rotates through the full photo pool only for collisions.
+ */
+export function assignUniqueDishPhotos(dishes: Array<{ name: string; image?: string | null }>): string[] {
+  const pool: string[] = [];
+  const poolSeen = new Set<string>();
+  const absorb = (url: string) => {
+    if (url && !poolSeen.has(url)) {
+      poolSeen.add(url);
+      pool.push(url);
+    }
+  };
+  for (const url of Object.values(DISH_PHOTO_MAP)) absorb(url);
+  for (const url of DEFAULT_GOURMET_PHOTOS) absorb(url);
+
+  const natural = dishes.map((d) => getDishImageUrl(d.name, d.image ?? undefined));
+  const used = new Set<string>();
+  const out: string[] = [];
+  for (let i = 0; i < natural.length; i++) {
+    let url = natural[i];
+    if (used.has(url) && pool.length > 1) {
+      const start = Math.max(0, pool.indexOf(url));
+      let probe = (start + 1) % pool.length;
+      let guard = 0;
+      while (used.has(pool[probe]) && guard < pool.length) {
+        probe = (probe + 1) % pool.length;
+        guard += 1;
+      }
+      url = pool[probe];
+    }
+    used.add(url);
+    out.push(url);
+  }
+  return out;
 }

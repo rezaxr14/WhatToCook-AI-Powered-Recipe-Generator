@@ -43,13 +43,13 @@ const CHAP_WINDOWS: Record<
   hero: { a: 0, b: 0.001, c: 0.075, d: 0.13, drift: 40, startVisible: true },
   fridge: { a: 0.2, b: 0.24, c: 0.295, d: 0.34, drift: 40 },
   ai: { a: 0.355, b: 0.4, c: 0.445, d: 0.49, drift: 40 },
-  galaxy: { a: 0.485, b: 0.525, c: 0.565, d: 0.605, drift: 40 },
-  s1: { a: 0.575, b: 0.6, c: 0.635, d: 0.66, drift: 40 },
-  s2: { a: 0.635, b: 0.66, c: 0.695, d: 0.72, drift: 40 },
-  s3: { a: 0.695, b: 0.72, c: 0.745, d: 0.77, drift: 40 },
-  s4: { a: 0.745, b: 0.77, c: 0.8, d: 0.83, drift: 40 },
-  final: { a: 0.795, b: 0.83, c: 0.88, d: 0.915, drift: 40 },
-  cta: { a: 0.93, b: 0.975, c: 0.975, d: 0.975, drift: 48 }, // fade-in only (c==d → never auto-fades)
+  galaxy: { a: 0.485, b: 0.525, c: 0.57, d: 0.61, drift: 40 },
+  s1: { a: 0.585, b: 0.615, c: 0.65, d: 0.68, drift: 40 },
+  s2: { a: 0.665, b: 0.695, c: 0.725, d: 0.755, drift: 40 },
+  s3: { a: 0.73, b: 0.76, c: 0.795, d: 0.825, drift: 40 },
+  s4: { a: 0.8, b: 0.83, c: 0.86, d: 0.89, drift: 40 },
+  final: { a: 0.88, b: 0.91, c: 0.965, d: 0.995, drift: 40 },
+  cta: { a: 0.945, b: 0.98, c: 0.98, d: 0.98, drift: 48 }, // fade-in only (c==d → never auto-fades)
 };
 
 /* ------------------------------------------------------------------ */
@@ -65,29 +65,45 @@ const TOUR_STOPS: ChapterStop[] = [
   { p: 0.02, key: 'tour.stopHero' },
   { p: 0.28, key: 'tour.stopFridge' },
   { p: 0.445, key: 'tour.stopAI' },
-  { p: 0.55, key: 'tour.stopGalaxy' },
-  { p: 0.68, key: 'tour.stopCook' },
-  { p: 0.845, key: 'tour.stopDish' },
-  { p: 0.975, key: 'tour.stopFinale' },
+  { p: 0.545, key: 'tour.stopGalaxy' },
+  { p: 0.72, key: 'tour.stopCook' },
+  { p: 0.85, key: 'tour.stopDish' },
+  { p: 0.945, key: 'tour.stopFinale' },
 ];
 
-/** [from, to, seconds] — the film's editing rhythm across the timeline. */
+/**
+ * [from, to, seconds] — the film's editing rhythm.
+ * Short opening cuts get the film moving within the first second or two;
+ * zero-length segments are in-place "beats" that let each chapter breathe
+ * before the next cut. Total ≈ 55 s.
+ */
 const TOUR_SEGMENTS: Array<[number, number, number]> = [
-  [0, 0.02, 4.5],
-  [0.02, 0.06, 3.5],
-  [0.06, 0.28, 9],
-  [0.28, 0.31, 4],
-  [0.31, 0.445, 8],
-  [0.445, 0.48, 6],
-  [0.48, 0.55, 7],
-  [0.55, 0.68, 10],
-  [0.68, 0.73, 6],
-  [0.73, 0.845, 8],
-  [0.845, 0.92, 8],
-  [0.92, 1, 9],
+  [0, 0.06, 2.6], // opening cut — dolly in fast, no dead air
+  [0.06, 0.28, 4.6], // glide to the fridge as the door swings open
+  [0.28, 0.28, 3.0], // beat: fridge shelves
+  [0.28, 0.445, 5.4], // pull back into the constellation
+  [0.445, 0.445, 2.8], // beat: AI vision
+  [0.445, 0.545, 3.8], // drift into the galaxy
+  [0.545, 0.545, 2.4], // beat: galaxy
+  [0.545, 0.66, 3.6], // descend to the stove — pieces drop in sequence
+  [0.66, 0.66, 2.2], // beat: everything in the pan
+  [0.66, 0.72, 2.2], // flame and sauce develop
+  [0.72, 0.72, 2.8], // beat: cooking
+  [0.72, 0.8, 3.4], // the pan becomes the plated dish
+  [0.8, 0.85, 1.6], // settle the shot on the dish
+  [0.85, 0.85, 2.6], // beat: the dish
+  [0.85, 0.945, 4.6], // orbit while the table rises
+  [0.945, 0.945, 3.0], // beat: dinner on the table
+  [0.945, 1, 3.4], // pull out to the finale
 ];
 
 const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+/** Ease-out for the opening cut — fastest motion at the very start. */
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+/** Inverse of easeOutCubic (for resuming a paused opening cut). */
+const easeOutCubicInv = (k: number) => 1 - Math.cbrt(1 - k);
 
 /** Inverse of easeInOutCubic — turns a 0..1 position into the time it takes. */
 const easeInOutCubicInv = (k: number) =>
@@ -289,7 +305,7 @@ export const LandingPage: React.FC = () => {
         return;
       }
       const [from, to, dur] = segs[idx];
-      const k = easeInOutCubic(Math.min(1, local / dur));
+      const k = idx === 0 ? easeOutCubic(Math.min(1, local / dur)) : easeInOutCubic(Math.min(1, local / dur));
       scrollToProgress(from + (to - from) * k);
     },
     [endTour, scrollToProgress]
@@ -331,7 +347,7 @@ export const LandingPage: React.FC = () => {
     if (p >= 1) idx = segs.length - 1;
     const [from, to, dur] = segs[idx];
     const frac = Math.max(0, Math.min(1, (p - from) / Math.max(1e-6, to - from)));
-    const spentInSeg = dur * easeInOutCubicInv(frac);
+    const spentInSeg = dur * (idx === 0 ? easeOutCubicInv(frac) : easeInOutCubicInv(frac));
     let acc = 0;
     for (let i = 0; i < idx; i++) acc += segs[i][2];
     segRef.current = idx;
@@ -562,28 +578,31 @@ export const LandingPage: React.FC = () => {
       {/* ---------- Chapter IV — Recipe galaxy ---------- */}
       <Chapter k="galaxy" register={registerChapter} className="items-start justify-center pt-24">
         <div className="max-w-2xl px-8 text-center">
-          <h2 className="text-4xl font-black leading-tight tracking-tight text-stone-50 sm:text-6xl" style={DISPLAY_FONT}>
+          <h2 className="text-3xl font-black leading-tight tracking-tight text-stone-50 sm:text-5xl" style={DISPLAY_FONT}>
             {t('story.galaxyTitle')}
           </h2>
-          <p className="mt-4 text-sm font-medium text-stone-300/90 sm:text-base">{t('story.galaxySub')}</p>
+          <p className="mx-auto mt-3 max-w-lg text-sm font-medium text-stone-300/90 sm:text-[15px]">{t('story.galaxySub')}</p>
         </div>
       </Chapter>
 
       {/* ---------- Chapter V — Cooking steps ---------- */}
       {([
-        [0.575, 0.6, 0.635, 0.66, 's1', '01', t('story.prep')],
-        [0.635, 0.66, 0.695, 0.72, 's2', '02', t('story.cook')],
-        [0.695, 0.72, 0.745, 0.77, 's3', '03', t('story.combine')],
-        [0.745, 0.77, 0.8, 0.83, 's4', '04', t('story.serve')],
+        [0.585, 0.615, 0.65, 0.68, 's1', '01', t('story.prep')],
+        [0.665, 0.695, 0.725, 0.755, 's2', '02', t('story.cook')],
+        [0.73, 0.76, 0.795, 0.825, 's3', '03', t('story.combine')],
+        [0.8, 0.83, 0.86, 0.89, 's4', '04', t('story.serve')],
       ] as Array<[number, number, number, number, ChapKey, string, string]>).map(([a, b, c, d, key, num, word]) => (
         <Chapter key={key} k={key} register={registerChapter} range={[a, b, c, d]} className="items-end">
-          <div className="p-10 sm:p-16">
-            <div className="text-6xl font-black text-amber-300/25 sm:text-8xl" style={DISPLAY_FONT}>
+          <div className="flex items-center gap-3 p-10 sm:p-16">
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-amber-300/30 bg-stone-950/55 text-[11px] font-black text-amber-200 backdrop-blur-md sm:h-9 sm:w-9 sm:text-xs"
+              style={DISPLAY_FONT}
+            >
               {num}
-            </div>
-            <div className="mt-1 text-sm font-black tracking-[0.4em] text-stone-100" style={DISPLAY_FONT}>
+            </span>
+            <span className="text-[10px] font-black tracking-[0.45em] text-stone-100/90 sm:text-[11px]" style={DISPLAY_FONT}>
               {word.toUpperCase()}
-            </div>
+            </span>
           </div>
         </Chapter>
       ))}
@@ -592,10 +611,10 @@ export const LandingPage: React.FC = () => {
       <Chapter k="final" register={registerChapter} className="items-center">
         <div className="mx-auto grid max-w-6xl gap-10 px-8 sm:px-12 lg:grid-cols-2 lg:items-center">
           <div>
-            <h2 className="text-5xl font-black leading-[1.05] tracking-tight text-stone-50 sm:text-6xl" style={DISPLAY_FONT}>
+            <h2 className="text-4xl font-black leading-[1.05] tracking-tight text-stone-50 sm:text-5xl" style={DISPLAY_FONT}>
               {t('story.finalTitle')}
             </h2>
-            <p className="mt-5 max-w-md text-sm font-medium text-stone-300/90 sm:text-base">{t('story.finalSub')}</p>
+            <p className="mt-4 max-w-md text-sm font-medium text-stone-300/90 sm:text-base">{t('story.finalSub')}</p>
           </div>
           <div className="pointer-events-auto ml-auto w-full max-w-xs rounded-3xl border border-stone-100/15 bg-stone-950/60 p-6 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-xl">
             <div className="flex items-center justify-between">
@@ -611,16 +630,16 @@ export const LandingPage: React.FC = () => {
             </div>
             <div className="mt-4 text-[10px] font-black tracking-[0.25em] text-stone-400">{t('story.cardIng')}</div>
             <ul className="mt-2 space-y-1 text-xs font-medium text-stone-300">
-              {['Tomatoes', 'Pasta', 'Garlic', 'Basil', 'Parmesan', 'Olive Oil'].map((ing) => (
+              {['Tomatoes', 'Pasta', 'Garlic', 'Basil'].map((ing) => (
                 <li key={ing} className="flex items-center gap-2">
                   <span className="h-1 w-1 rounded-full bg-amber-400" />
                   {ing}
                 </li>
               ))}
             </ul>
-            <div className="mt-4 rounded-2xl border border-amber-200/20 bg-amber-400/5 p-3">
-              <div className="text-[9px] font-black tracking-[0.25em] text-amber-300/80">{t('story.cardAi')}</div>
-              <div className="mt-1 text-xs font-medium text-stone-300">{t('story.cardAiText')}</div>
+            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-amber-200/20 bg-amber-400/5 px-3 py-2">
+              <span className="text-[9px] font-black tracking-[0.25em] text-amber-300/80">{t('story.cardAi')}</span>
+              <span className="text-xs font-medium text-stone-300">{t('story.cardAiText')}</span>
             </div>
             <button
               onClick={() => navigate('/recipes')}

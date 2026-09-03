@@ -1,9 +1,24 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom, ChromaticAberration, Noise, Vignette, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import * as THREE from 'three';
 import { journey, seg, win, isMobileDevice } from './state';
+
+/** True when WebGL is running on a software rasterizer (headless CI,
+ *  very old machines). MSAA on SwiftShader/llvmpipe is both slow and can
+ *  exhaust the renderer, so keep those contexts sample-free. */
+const usesSoftwareRenderer = (gl: THREE.WebGLRenderer): boolean => {
+  try {
+    const ctx = gl.getContext();
+    const dbg = ctx.getExtension('WEBGL_debug_renderer_info');
+    if (!dbg) return false;
+    const name = String(ctx.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '');
+    return /swiftshader|llvmpipe|software|basic render/i.test(name);
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Cinematic post-production stack:
@@ -23,6 +38,11 @@ export const CinematicFX: React.FC = () => {
   const chroma = useRef<any>(null);
   const noise = useRef<any>(null);
   const mobile = useMemo(() => isMobileDevice(), []);
+  const gl = useThree((s) => s.gl);
+  // Multisampled anti-aliasing on real GPUs (crisp, no shimmer); sample-free
+  // on mobile and on software rasterizers where MSAA is wasted memory.
+  const softwareGl = useMemo(() => usesSoftwareRenderer(gl), [gl]);
+  const msaa = mobile || softwareGl ? 0 : 4;
   const [off, setOff] = useState(false);
   const emaRef = useRef(0);
   const slowFrames = useRef(0);
@@ -68,10 +88,12 @@ export const CinematicFX: React.FC = () => {
       chroma.current.offset.set(swell * (mobile ? 0.55 : 1), swell * 0.35);
     }
 
-    // Grain: heaviest in dreamy chapters, nearly gone in bright finale
+    // Grain: heaviest in dreamy chapters, nearly gone in bright finale.
+    // Kept faint everywhere: on bright emissive surfaces (fridge interior,
+    // pendant bulbs) heavier grain reads as light flicker.
     if (noise.current) {
       const g = noise.current;
-      const target = 0.055 - finale * 0.03 - hero * 0.012;
+      const target = 0.026 - finale * 0.012 - hero * 0.01;
       const bm = g.blendMode;
       if (bm && bm.opacity) bm.opacity.value += (target - bm.opacity.value) * 0.08;
     }
@@ -79,7 +101,7 @@ export const CinematicFX: React.FC = () => {
 
   if (off) return null;
   return (
-    <EffectComposer multisampling={0} enableNormalPass={false}>
+    <EffectComposer multisampling={msaa} enableNormalPass={false}>
       <Bloom ref={bloom} mipmapBlur intensity={0.45} luminanceThreshold={0.3} luminanceSmoothing={0.32} radius={0.78} />
       <ChromaticAberration ref={chroma} offset={new THREE.Vector2(0.0009, 0.0004)} radialModulation modulationOffset={0.35} />
       <Noise ref={noise} premultiply />
