@@ -75,17 +75,20 @@ const LEMON_BODY = lathe(
 
 export const Lemon: React.FC<G> = (props) => (
   <group {...props}>
-    <mesh geometry={LEMON_BODY} castShadow>
-      <meshPhysicalMaterial color="#f3c11b" roughness={0.32} clearcoat={0.85} clearcoatRoughness={0.28} sheen={0.6} sheenColor="#fff3b0" />
-    </mesh>
-    <mesh position={[0, 0.06, 0]}>
-      <sphereGeometry args={[0.062, 14, 10]} />
-      <meshPhysicalMaterial color="#e9b512" roughness={0.32} clearcoat={0.85} clearcoatRoughness={0.28} />
-    </mesh>
-    <mesh position={[0, 1.42, 0]}>
-      <sphereGeometry args={[0.062, 14, 10]} />
-      <meshPhysicalMaterial color="#e9b512" roughness={0.32} clearcoat={0.85} clearcoatRoughness={0.28} />
-    </mesh>
+    {/* Lemon laid on its side so it reads naturally on the counter */}
+    <group rotation={[Math.PI / 2, 0, 0.35]} position={[0, 0.44, 0]}>
+      <mesh geometry={LEMON_BODY} castShadow>
+        <meshPhysicalMaterial color="#f3c11b" roughness={0.32} clearcoat={0.85} clearcoatRoughness={0.28} sheen={0.6} sheenColor="#fff3b0" />
+      </mesh>
+      <mesh position={[0, 0.06, 0]}>
+        <sphereGeometry args={[0.062, 14, 10]} />
+        <meshPhysicalMaterial color="#e9b512" roughness={0.32} clearcoat={0.85} clearcoatRoughness={0.28} />
+      </mesh>
+      <mesh position={[0, 1.42, 0]}>
+        <sphereGeometry args={[0.062, 14, 10]} />
+        <meshPhysicalMaterial color="#e9b512" roughness={0.32} clearcoat={0.85} clearcoatRoughness={0.28} />
+      </mesh>
+    </group>
   </group>
 );
 
@@ -107,28 +110,35 @@ export const Carrot: React.FC<G> = (props) => {
     const r = rand(7);
     return Array.from({ length: 5 }, (_, i) => ({
       key: i,
-      x: (r() - 0.5) * 0.22,
-      z: (r() - 0.5) * 0.22,
-      tilt: (r() - 0.5) * 0.9,
-      s: 0.75 + r() * 0.5,
+      // vertical fan offset (-: toward the carrot's center line)
+        up: -(0.04 + r() * 0.1),
+        z: (r() - 0.5) * 0.18,
+        tilt: -0.5 + r() * 1.0,
+        s: 0.7 + r() * 0.5,
     }));
   }, []);
   return (
     <group {...props}>
-      <mesh geometry={CARROT_BODY} castShadow>
-        <meshPhysicalMaterial color="#ef6c1f" roughness={0.48} clearcoat={0.35} clearcoatRoughness={0.4} />
-      </mesh>
-      {fronds.map((f) => (
-        <mesh
-          key={f.key}
-          geometry={CARROT_FROND}
-          position={[f.x, 1.52 + f.s * 0.1, f.z]}
-          rotation={[f.tilt, 0, -f.tilt]}
-          scale={f.s}
-        >
-          <meshStandardMaterial color="#4f8f3a" roughness={0.65} />
+      {/* Carrot laid flat on the counter. The model grows upward from its
+          root (y0) to its greens tip (y≈1.38); rotating the group -90°
+          about Z lays the body along +X. The +Y lift (≈ body radius)
+          keeps the carrot resting ON the surface instead of half-buried. */}
+      <group rotation={[0, 0, -Math.PI / 2]} position={[0, 0.25, 0]}>
+        <mesh geometry={CARROT_BODY} castShadow>
+          <meshPhysicalMaterial color="#ef6c1f" roughness={0.48} clearcoat={0.35} clearcoatRoughness={0.4} />
         </mesh>
-      ))}
+        {fronds.map((f) => (
+          <mesh
+            key={f.key}
+            geometry={CARROT_FROND}
+            position={[f.up, 1.45 + f.s * 0.1, f.z]}
+            rotation={[f.tilt, 0, Math.PI / 2]}
+            scale={f.s}
+          >
+            <meshStandardMaterial color="#4f8f3a" roughness={0.65} />
+          </mesh>
+        ))}
+      </group>
     </group>
   );
 };
@@ -208,14 +218,14 @@ const MUSHROOM_STEM = lathe(
 
 export const Mushroom: React.FC<G> = (props) => (
   <group {...props}>
-    <mesh geometry={MUSHROOM_CAP} castShadow>
+    <mesh geometry={MUSHROOM_STEM} castShadow>
+      <meshPhysicalMaterial color="#f1e6d2" roughness={0.45} clearcoat={0.2} />
+    </mesh>
+    <mesh geometry={MUSHROOM_CAP}>
       <meshPhysicalMaterial color="#cfa276" roughness={0.42} clearcoat={0.3} clearcoatRoughness={0.45} />
     </mesh>
     <mesh geometry={MUSHROOM_GILLS}>
       <meshStandardMaterial color="#a98a67" roughness={0.7} side={THREE.DoubleSide} />
-    </mesh>
-    <mesh geometry={MUSHROOM_STEM} castShadow>
-      <meshPhysicalMaterial color="#f1e6d2" roughness={0.45} clearcoat={0.2} />
     </mesh>
   </group>
 );
@@ -229,32 +239,34 @@ const GARLIC_CLOVE = lathe(
 
 export const Garlic: React.FC<G> = (props) => (
   <group {...props}>
-    {[0, 1, 2, 3, 4].map((i) => {
-      const a = (i / 5) * Math.PI * 2;
-      return (
-        <mesh
-          key={i}
-          geometry={GARLIC_CLOVE}
-          position={[Math.sin(a) * 0.115, 0.4, Math.cos(a) * 0.115]}
-          rotation={[0.16 * Math.cos(a), a, -0.16 * Math.sin(a)]}
-          scale={1.06}
-          castShadow
-        >
-          <meshPhysicalMaterial color="#f2e9d6" roughness={0.5} clearcoat={0.35} clearcoatRoughness={0.4} sheen={0.6} sheenColor="#fffdf5" />
-        </mesh>
-      );
-    })}
-    <mesh geometry={GARLIC_CLOVE} position={[0, 0.46, 0]} scale={1.15} castShadow>
-      <meshPhysicalMaterial color="#efe5d0" roughness={0.5} clearcoat={0.35} clearcoatRoughness={0.4} />
-    </mesh>
-    <mesh position={[0, 0.92, 0]} rotation={[0.12, 0, -0.08]}>
-      <coneGeometry args={[0.035, 0.22, 8]} />
-      <meshStandardMaterial color="#cbb98f" roughness={0.7} />
-    </mesh>
-    <mesh position={[0, 0.05, 0]}>
-      <coneGeometry args={[0.05, 0.09, 8]} />
-      <meshStandardMaterial color="#c9b691" roughness={0.85} />
-    </mesh>
+    <group rotation={[Math.PI / 2, 0, 0.5]} position={[0, 0.28, 0]}>
+      {[0, 1, 2, 3, 4].map((i) => {
+        const a = (i / 5) * Math.PI * 2;
+        return (
+          <mesh
+            key={i}
+            geometry={GARLIC_CLOVE}
+            position={[Math.sin(a) * 0.115, 0.4, Math.cos(a) * 0.115]}
+            rotation={[0.16 * Math.cos(a), a, -0.16 * Math.sin(a)]}
+            scale={1.06}
+            castShadow
+          >
+            <meshPhysicalMaterial color="#f2e9d6" roughness={0.5} clearcoat={0.35} clearcoatRoughness={0.4} sheen={0.6} sheenColor="#fffdf5" />
+          </mesh>
+        );
+      })}
+      <mesh geometry={GARLIC_CLOVE} position={[0, 0.46, 0]} scale={1.15} castShadow>
+        <meshPhysicalMaterial color="#efe5d0" roughness={0.5} clearcoat={0.35} clearcoatRoughness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.92, 0]} rotation={[0.12, 0, -0.08]}>
+        <coneGeometry args={[0.035, 0.22, 8]} />
+        <meshStandardMaterial color="#cbb98f" roughness={0.7} />
+      </mesh>
+      <mesh position={[0, 0.05, 0]}>
+        <coneGeometry args={[0.05, 0.09, 8]} />
+        <meshStandardMaterial color="#c9b691" roughness={0.85} />
+      </mesh>
+    </group>
   </group>
 );
 
@@ -270,21 +282,24 @@ const ONION_BODY = lathe(
 
 export const Onion: React.FC<G> = (props) => (
   <group {...props}>
-    <mesh geometry={ONION_BODY} castShadow>
-      <meshPhysicalMaterial color="#d19a4f" roughness={0.38} clearcoat={0.5} clearcoatRoughness={0.3} sheen={0.5} sheenColor="#ffe9bf" />
-    </mesh>
-    <mesh position={[0, 1.04, 0]} rotation={[0.1, 0, -0.12]}>
-      <coneGeometry args={[0.028, 0.24, 6]} />
-      <meshStandardMaterial color="#a9bd7e" roughness={0.65} />
-    </mesh>
-    <mesh position={[0.02, 1.02, 0.02]} rotation={[-0.14, 0.5, 0.1]}>
-      <coneGeometry args={[0.022, 0.18, 6]} />
-      <meshStandardMaterial color="#96ad6d" roughness={0.65} />
-    </mesh>
-    <mesh position={[0, 0.05, 0]}>
-      <coneGeometry args={[0.055, 0.1, 8]} />
-      <meshStandardMaterial color="#b99a63" roughness={0.85} />
-    </mesh>
+    {/* Onion lying on its side (bloom tip pointing sideways) */}
+    <group rotation={[Math.PI / 2, 0, 0.2]} position={[0, 0.42, 0]}>
+      <mesh geometry={ONION_BODY} castShadow>
+        <meshPhysicalMaterial color="#d19a4f" roughness={0.38} clearcoat={0.5} clearcoatRoughness={0.3} sheen={0.5} sheenColor="#ffe9bf" />
+      </mesh>
+      <mesh position={[0, 1.04, 0]} rotation={[0.1, 0, -0.12]}>
+        <coneGeometry args={[0.028, 0.24, 6]} />
+        <meshStandardMaterial color="#a9bd7e" roughness={0.65} />
+      </mesh>
+      <mesh position={[0.02, 1.02, 0.02]} rotation={[-0.14, 0.5, 0.1]}>
+        <coneGeometry args={[0.022, 0.18, 6]} />
+        <meshStandardMaterial color="#96ad6d" roughness={0.65} />
+      </mesh>
+      <mesh position={[0, 0.05, 0]}>
+        <coneGeometry args={[0.055, 0.1, 8]} />
+        <meshStandardMaterial color="#b99a63" roughness={0.85} />
+      </mesh>
+    </group>
   </group>
 );
 

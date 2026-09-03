@@ -174,32 +174,45 @@ const ChapterLights: React.FC = () => {
 };
 
 // ---------- In-world fridge labels ----------
+// Chips sit just inside the open door plane (fridge front is z≈-2.47 in
+// world space), anchored to each shelf so they read as exhibit tags for the
+// ingredients — never floating over the food itself.
 
 const CHIP_CLASS =
-  'rounded-full border border-amber-100/40 bg-stone-950/60 backdrop-blur-md px-3 py-1 text-[10px] font-bold tracking-[0.18em] text-amber-100 whitespace-nowrap';
+  'pointer-events-none flex items-center gap-1.5 rounded-full border border-amber-200/25 bg-stone-950/70 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.22em] text-amber-100/95 shadow-[0_2px_10px_rgba(0,0,0,0.45)] backdrop-blur-md whitespace-nowrap';
+
+const ShelfTag: React.FC<{ chip: string; label: string }> = ({ chip, label }) => (
+  <span className={chip}>
+    <span className="h-1 w-1 shrink-0 rounded-full bg-amber-300/90 shadow-[0_0_6px_rgba(252,211,77,0.9)]" />
+    {label}
+  </span>
+);
 
 const FridgeLabels: React.FC = () => {
   const { t } = useTranslation();
   const chip = CHIP_CLASS;
   return (
     <>
-      <FadeHtml position={[2.2, 2.8, -2.4]} window={[0.215, 0.245, 0.3, 0.33]} distanceFactor={5}>
-        <span className={chip}>{t('story.ingEggs')}</span>
+      {/* Top shelf (milk / eggs / cheese) */}
+      <FadeHtml position={[2.94, 2.58, -2.5]} window={[0.215, 0.245, 0.3, 0.33]} distanceFactor={5}>
+        <ShelfTag chip={chip} label={t('story.ingMilk')} />
       </FadeHtml>
-      <FadeHtml position={[1.78, 2.72, -2.4]} window={[0.225, 0.255, 0.3, 0.33]} distanceFactor={5}>
-        <span className={chip}>{t('story.ingCheese')}</span>
+      <FadeHtml position={[2.18, 2.56, -2.5]} window={[0.225, 0.255, 0.3, 0.33]} distanceFactor={5}>
+        <ShelfTag chip={chip} label={t('story.ingEggs')} />
       </FadeHtml>
-      <FadeHtml position={[1.98, 2.08, -2.4]} window={[0.235, 0.265, 0.305, 0.335]} distanceFactor={5}>
-        <span className={chip}>{t('story.ingTomato')}</span>
+      <FadeHtml position={[1.7, 2.56, -2.5]} window={[0.235, 0.265, 0.3, 0.33]} distanceFactor={5}>
+        <ShelfTag chip={chip} label={t('story.ingCheese')} />
       </FadeHtml>
-      <FadeHtml position={[2.8, 2.9, -2.4]} window={[0.245, 0.275, 0.305, 0.335]} distanceFactor={5}>
-        <span className={chip}>{t('story.ingMilk')}</span>
+      {/* Middle shelf (tomatoes) */}
+      <FadeHtml position={[2.16, 1.86, -2.5]} window={[0.245, 0.275, 0.305, 0.335]} distanceFactor={5}>
+        <ShelfTag chip={chip} label={t('story.ingTomato')} />
       </FadeHtml>
-      <FadeHtml position={[2.42, 1.22, -2.4]} window={[0.255, 0.285, 0.31, 0.34]} distanceFactor={5}>
-        <span className={chip}>{t('story.ingBasil')}</span>
+      {/* Bottom shelf (basil pot / garlic) */}
+      <FadeHtml position={[2.62, 1.02, -2.5]} window={[0.255, 0.285, 0.31, 0.34]} distanceFactor={5}>
+        <ShelfTag chip={chip} label={t('story.ingBasil')} />
       </FadeHtml>
-      <FadeHtml position={[2.0, 1.28, -2.4]} window={[0.265, 0.295, 0.315, 0.345]} distanceFactor={5}>
-        <span className={chip}>{t('story.ingGarlic')}</span>
+      <FadeHtml position={[2.0, 1.0, -2.5]} window={[0.265, 0.295, 0.315, 0.345]} distanceFactor={5}>
+        <ShelfTag chip={chip} label={t('story.ingGarlic')} />
       </FadeHtml>
     </>
   );
@@ -214,7 +227,7 @@ export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => 
 
   return (
     <Canvas
-      dpr={mobile ? [1, 1.5] : [1, 1.75]}
+      dpr={mobile ? [1, 1.25] : [1, 1.5]}
       camera={{ position: [0, 1.6, 7.6], fov: mobile ? 58 : 44, near: 0.1, far: 80 }}
       gl={{
         antialias: !mobile,

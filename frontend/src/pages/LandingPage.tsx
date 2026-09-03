@@ -135,7 +135,6 @@ export const LandingPage: React.FC = () => {
   const [tourStopIdx, setTourStopIdx] = useState(0);
 
   const tourRafRef = useRef<number | null>(null);
-  const chapRafRef = useRef<number | null>(null);
   const segRef = useRef(0);
   const tourT0Ref = useRef(0);
   const tourBusyRef = useRef(false); // true while the rAF tour loop owns scrolling
@@ -235,17 +234,15 @@ export const LandingPage: React.FC = () => {
       }
     };
     apply();
-    const timer = window.setInterval(apply, 80);
-    const loop = () => {
-      apply();
-      chapRafRef.current = requestAnimationFrame(loop);
-    };
-    chapRafRef.current = requestAnimationFrame(loop);
+    // DOM chrome (chapter captions, hairline, cue, rail) only needs to catch
+    // up when the page is actually moving — the native scroll event covers
+    // manual scrolling AND the programmatic tour scrolls. A slow interval is
+    // kept purely as a safety net (e.g. scroll events coalesced away).
+    const timer = window.setInterval(apply, 200);
     const onScroll = () => apply();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
       window.clearInterval(timer);
-      if (chapRafRef.current !== null) cancelAnimationFrame(chapRafRef.current);
       window.removeEventListener('scroll', onScroll);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

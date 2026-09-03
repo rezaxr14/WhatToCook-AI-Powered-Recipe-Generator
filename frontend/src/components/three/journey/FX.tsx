@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { EffectComposer, Bloom, ChromaticAberration, Noise, Vignette, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
@@ -13,14 +13,30 @@ import { journey, seg, win, isMobileDevice } from './state';
  *  - ACES tone mapping    — filmic highlight rolloff
  *
  * All values are driven from journey.progress each frame (no React renders).
+ *
+ * Adaptive quality: if frames blow past ~28ms for a sustained stretch the
+ * whole composer unmounts itself (raw WebGL render only) so scrolling never
+ * chugs on weak GPUs / software rasterizers.
  */
 export const CinematicFX: React.FC = () => {
   const bloom = useRef<any>(null);
   const chroma = useRef<any>(null);
   const noise = useRef<any>(null);
   const mobile = useMemo(() => isMobileDevice(), []);
+  const [off, setOff] = useState(false);
+  const emaRef = useRef(0);
+  const slowFrames = useRef(0);
+
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.2);
+    emaRef.current = emaRef.current * 0.92 + dt * 0.08;
+    if (emaRef.current > 0.028) slowFrames.current += 1;
+    else slowFrames.current = Math.max(0, slowFrames.current - 1);
+    if (!off && slowFrames.current > 75) setOff(true); // ~2.5s of heavy frames
+  });
 
   useFrame(({ clock }) => {
+    if (off) return;
     const p = journey.progress;
     const t = clock.elapsedTime;
 
@@ -61,8 +77,9 @@ export const CinematicFX: React.FC = () => {
     }
   });
 
+  if (off) return null;
   return (
-    <EffectComposer multisampling={mobile ? 0 : 4} enableNormalPass={false}>
+    <EffectComposer multisampling={0} enableNormalPass={false}>
       <Bloom ref={bloom} mipmapBlur intensity={0.45} luminanceThreshold={0.3} luminanceSmoothing={0.32} radius={0.78} />
       <ChromaticAberration ref={chroma} offset={new THREE.Vector2(0.0009, 0.0004)} radialModulation modulationOffset={0.35} />
       <Noise ref={noise} premultiply />

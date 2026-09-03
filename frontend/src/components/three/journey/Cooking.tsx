@@ -67,15 +67,27 @@ export const Cooking: React.FC = () => {
       sm.color.copy(SAUCE_BASE).lerp(SAUCE_DARK, s);
     }
 
-    // Ingredients dropping into the pan
+    // Ingredients dropping into the pan — each falls from above and lands
+    // ON the sauce surface inside the pan (station origin sits at world
+    // y≈1.02; the pan's inner sauce surface is around local y≈0.31).
     if (drops.current) {
       const drop = seg(p, 0.585, 0.645);
       drops.current.visible = drop > 0.001 && p < 0.73;
       drops.current.children.forEach((child, i) => {
         const local = THREE.MathUtils.clamp(drop * 1.6 - i * 0.09, 0, 1);
-        child.position.y = 2.3 - local * 1.15;
-        child.rotation.x = local * 5 + i;
-        child.rotation.z = local * 3.5;
+        const LAND_Y = 0.32 + (i % 3) * 0.035; // resting surface inside the pan
+        let y: number;
+        if (local < 0.75) {
+          // still falling from above the pan rim (local y≈2.2)
+          y = 2.2 - (local / 0.75) * (2.2 - LAND_Y);
+        } else {
+          // soft landing settle (slight bounce then rest)
+          const s = (local - 0.75) / 0.25;
+          y = LAND_Y + Math.max(0, Math.sin(s * Math.PI * 2.5)) * 0.05 * (1 - s);
+        }
+        child.position.y = y;
+        child.rotation.x = local * 2.2 + i;
+        child.rotation.z = local * 1.6;
       });
     }
 

@@ -125,14 +125,15 @@ const KitchenRoom: React.FC = () => {
     // Interior fridge light spills out with the door.
     if (fridgeLight.current) fridgeLight.current.intensity = open * 3.2;
 
-    // Warm pendant pools of light — brighter once home again.
+    // Warm pendant pools of light — brighter once home again. Intentionally
+    // ROCK-STEADY: any high-frequency intensity wobble reads as buzzing on
+    // bright surfaces (and inside the fridge when the door opens).
     const warmth = 0.85 + seg(p, 0.88, 0.96) * 0.9;
-    const flicker = 0.94 + Math.sin(clock.elapsedTime * 9.3) * 0.03 + Math.sin(clock.elapsedTime * 23.7) * 0.02;
-    if (bulb1.current) bulb1.current.intensity = 3.4 * warmth * flicker;
-    if (bulb2.current) bulb2.current.intensity = 2.8 * warmth * (2 - flicker);
+    if (bulb1.current) bulb1.current.intensity = 3.4 * warmth;
+    if (bulb2.current) bulb2.current.intensity = 2.8 * warmth;
 
-    // Moonlight: most present at hero, fades as the room sinks.
-    if (moonLight.current) moonLight.current.intensity = 0.9 * (1 - sink) * (0.6 + Math.sin(clock.elapsedTime * 0.3) * 0.08);
+    // Moonlight: most present at hero, fades as the room sinks. Steady too.
+    if (moonLight.current) moonLight.current.intensity = 0.9 * (1 - sink);
     if (windowGlow.current) windowGlow.current.opacity = 0.5 * (1 - sink);
 
     // Bistro table rises for the finale meal.
@@ -336,7 +337,7 @@ const KitchenRoom: React.FC = () => {
         <BasilPot position={[0.02, 0.8625, 0.02]} scale={0.95} />
         <Garlic position={[-0.4, 0.8625, -0.1]} scale={0.85} />
         <Onion position={[-0.1, 0.8625, -0.26]} scale={0.75} />
-        <BellPepper position={[0.42, 0.8625, 0.08]} scale={0.85} />
+        <BellPepper position={[0.42, 0.8625, 0.08]} scale={0.68} />
         <Tomato position={[-0.42, 1.7125, 0.06]} scale={0.65} />
         <Tomato position={[-0.14, 1.7125, -0.22]} scale={0.55} />
         <Mushroom position={[0.38, 1.7125, 0.0]} scale={0.78} />
