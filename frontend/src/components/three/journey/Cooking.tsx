@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { journey, seg, win } from './state';
 import { TomatoChunk, Garlic, BasilPot } from './Ingredients';
-import { SteamEmitter } from './Effects';
+import { SteamEmitter, EmberField } from './Effects';
 
 // Sauce tint endpoints — hoisted so the per-frame update allocates nothing.
 const SAUCE_BASE = new THREE.Color('#e2603f');
@@ -18,6 +18,8 @@ export const Cooking: React.FC = () => {
   const station = useRef<THREE.Group>(null);
   const pan = useRef<THREE.Group>(null);
   const flame = useRef<THREE.Mesh>(null);
+  const flameMid = useRef<THREE.Mesh>(null);
+  const flameCore = useRef<THREE.Mesh>(null);
   const flameLight = useRef<THREE.PointLight>(null);
   const sauce = useRef<THREE.Mesh>(null);
   const drops = useRef<THREE.Group>(null);
@@ -38,15 +40,20 @@ export const Cooking: React.FC = () => {
       station.current.position.y = 1.02 + (1 - st) * -0.4;
     }
 
-    // Flame flicker
+    // Flame flicker (three layered cones driven together)
     const flameOn = win(p, 0.6, 0.625, 0.72, 0.775);
-    if (flame.current) {
-      flame.current.visible = flameOn > 0.01;
-      const flick = 0.85 + Math.sin(t * 21) * 0.12 + Math.sin(t * 47.3) * 0.06;
-      flame.current.scale.set(flameOn * flick, flameOn * (0.9 + flick * 0.35), flameOn * flick);
-      const fm = flame.current.material as THREE.MeshBasicMaterial;
-      fm.opacity = flameOn * 0.9;
-    }
+    const flick = 0.85 + Math.sin(t * 21) * 0.12 + Math.sin(t * 47.3) * 0.06;
+    const flameScalars: Array<THREE.Mesh | null> = [flame.current, flameMid.current, flameCore.current];
+    flameScalars.forEach((m, ci) => {
+      if (!m) return;
+      const visible = flameOn > 0.01;
+      m.visible = visible;
+      if (!visible) return;
+      const f2 = 0.8 + Math.sin(t * (21 + ci * 11) + ci * 4) * 0.16 + Math.sin(t * (47 + ci * 7)) * 0.06;
+      m.scale.set(flameOn * f2, flameOn * (0.95 + f2 * 0.4), flameOn * f2);
+      const mat = m.material as THREE.MeshBasicMaterial;
+      mat.opacity = flameOn * (ci === 0 ? 0.5 : ci === 1 ? 0.55 : 0.85);
+    });
     if (flameLight.current) {
       flameLight.current.intensity = flameOn * (2.6 + Math.sin(t * 31.7) * 0.7);
     }
@@ -72,13 +79,17 @@ export const Cooking: React.FC = () => {
       });
     }
 
-    // The finished dish takes over
+    // The finished dish takes over — then settles on the bistro table for
+    // the warm homecoming finale (room & table rise at 0.86+).
     const dishIn = seg(p, 0.725, 0.785);
+    const settle = seg(p, 0.885, 0.95);
     if (dish.current) {
       dish.current.visible = dishIn > 0.001;
       dish.current.scale.setScalar(Math.max(dishIn, 0.001));
-      dish.current.position.y = 1.12 + (1 - dishIn) * -0.5;
-      dish.current.rotation.y = t * 0.22;
+      dish.current.position.y = 1.12 * (1 - settle) + 0.96 * settle + (1 - dishIn) * -0.5;
+      dish.current.rotation.y = settle < 0.5 ? t * 0.22 : t * 0.05 + 0.6;
+      // gentle "placed" breathing once it rests on the table
+      dish.current.position.y += Math.sin(t * 1.8) * 0.004 * settle;
     }
     if (pasta.current) {
       const nest = seg(p, 0.74, 0.8);
@@ -119,12 +130,21 @@ export const Cooking: React.FC = () => {
           </mesh>
         </group>
 
-        {/* Flame between slab and pan */}
-        <mesh ref={flame} position={[0, 0.16, 0]} visible={false}>
-          <coneGeometry args={[0.5, 0.3, 20, 1, true]} />
-          <meshBasicMaterial color="#ff8c3a" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
+        {/* Flame between slab and pan — layered so bloom reads it beautifully */}
+        <mesh ref={flame} position={[0, 0.165, 0]} visible={false}>
+          <coneGeometry args={[0.52, 0.34, 24, 1, true]} />
+          <meshBasicMaterial color="#ff7a1e" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
+        </mesh>
+        <mesh ref={flameMid} position={[0, 0.2, 0]} visible={false}>
+          <coneGeometry args={[0.3, 0.34, 20, 1, true]} />
+          <meshBasicMaterial color="#ffb257" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
+        </mesh>
+        <mesh ref={flameCore} position={[0, 0.24, 0]} visible={false}>
+          <coneGeometry args={[0.13, 0.3, 14, 1, true]} />
+          <meshBasicMaterial color="#fff3cf" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
         </mesh>
         <pointLight ref={flameLight} position={[0, 0.35, 0.2]} intensity={0} distance={4.5} decay={1.7} color="#ff9a4a" />
+        <EmberField position={[0, 0.45, 0]} window={[0.6, 0.625, 0.72, 0.775]} count={16} spread={0.75} rise={1.5} />
 
         {/* Falling ingredients */}
         <group ref={drops}>
@@ -175,8 +195,18 @@ export const Cooking: React.FC = () => {
           </mesh>
         ))}
 
-        {/* Basil + parmesan finish */}
-        <BasilPot position={[-0.12, 0.3, 0.05]} scale={0.42} />
+        {/* Fresh basil + parmesan finish */}
+        {Array.from({ length: 6 }, (_, i) => {
+          const a = (i / 6) * Math.PI * 2 + 0.5;
+          return (
+            <group key={i} position={[Math.cos(a) * 0.26, 0.31, Math.sin(a) * 0.26]} rotation={[0, -a, 0.5]}>
+              <mesh scale={[0.075, 0.012, 0.05]}>
+                <sphereGeometry args={[1, 8, 6]} />
+                <meshPhysicalMaterial color="#2e6b34" roughness={0.35} sheen={0.6} sheenColor="#9adca0" />
+              </mesh>
+            </group>
+          );
+        })}
         {Array.from({ length: 26 }, (_, i) => {
           const a = i * 2.39996;
           const r = 0.12 + (i % 5) * 0.09;

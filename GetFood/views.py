@@ -20,7 +20,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, permission_classes
+from GetFood.throttles import scoped, _throttle_class
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework import viewsets
 from rest_framework.response import Response
 
 from .ai_service import (
@@ -58,19 +60,22 @@ from .utils import find_best_image
 # REST Framework Model ViewSets
 # ==========================================
 
-class IngredientViewSet(viewsets.ModelViewSet):
+class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all().order_by("name")
     serializer_class = IngredientSerializer
+    throttle_classes = [_throttle_class("catalog")]
 
 
-class RecipeViewSet(viewsets.ModelViewSet):
+class RecipeViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Recipe.objects.all().order_by("name")
     serializer_class = RecipeSerializer
+    throttle_classes = [_throttle_class("catalog")]
 
 
-class UserPantryViewSet(viewsets.ModelViewSet):
+class UserPantryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = UserPantry.objects.all()
     serializer_class = UserPantrySerializer
+    throttle_classes = [_throttle_class("catalog")]
 
 
 @api_view(["GET"])
@@ -139,6 +144,7 @@ def api_health(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@scoped("auth")
 def api_auth_login(request):
     """Log in user via JSON credentials."""
     username = request.data.get("username", "").strip()
@@ -167,6 +173,7 @@ def api_auth_login(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@scoped("signup")
 def api_auth_signup(request):
     """Register a new user and initialize their pantry."""
     username = request.data.get("username", "").strip()
@@ -197,6 +204,7 @@ def api_auth_signup(request):
 
 
 @api_view(["POST"])
+@scoped("auth")
 def api_auth_logout(request):
     """Log out current session."""
     logout(request)
@@ -223,6 +231,7 @@ def api_auth_me(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@scoped("demo")
 def api_auth_demo(request):
     """1-Click Guest Demo Login with pre-stocked kitchen pantry."""
     demo_user, created = User.objects.get_or_create(
@@ -256,6 +265,7 @@ def api_auth_demo(request):
 # ==========================================
 
 @api_view(["GET"])
+@scoped("pantry")
 def api_pantry_get(request):
     """Get current user pantry ingredients."""
     if not request.user.is_authenticated:
@@ -270,6 +280,7 @@ def api_pantry_get(request):
 
 
 @api_view(["POST"])
+@scoped("pantry")
 def api_pantry_add(request):
     """Add ingredient(s) to the authenticated user's pantry."""
     user = request.user if request.user.is_authenticated else User.objects.first()
@@ -312,6 +323,7 @@ def api_pantry_add(request):
 
 
 @api_view(["POST"])
+@scoped("pantry")
 def api_pantry_remove(request):
     """Remove ingredient from user's pantry."""
     user = request.user if request.user.is_authenticated else User.objects.first()
@@ -336,6 +348,7 @@ def api_pantry_remove(request):
 
 
 @api_view(["POST"])
+@scoped("pantry")
 def api_pantry_clear(request):
     """Clear all ingredients in user's pantry."""
     user = request.user if request.user.is_authenticated else User.objects.first()
@@ -352,6 +365,7 @@ def api_pantry_clear(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@scoped("scan", "scan_day")
 def api_pantry_scan_image(request):
     """
     Multimodal Vision Fridge & Pantry Scanner.
@@ -370,13 +384,37 @@ def api_pantry_scan_image(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    # --- Upload hardening: reject non-images, oversized payloads ---------
+    MAX_SCAN_BYTES = int(os.environ.get("SCAN_MAX_BYTES", str(8 * 1024 * 1024)))
     mime_type = "image/jpeg"
     image_bytes = None
 
     if image_file:
-        image_bytes = image_file.read()
-        mime_type = image_file.content_type or "image/jpeg"
+        if image_file.size > MAX_SCAN_BYTES:
+            return Response(
+                {"error": "Image too large (max 8 MB). Please upload a smaller photo."},
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            )
+        raw = image_file.read()
+        content_type = (image_file.content_type or "").lower()
+        if content_type and not content_type.startswith("image/"):
+            return Response(
+                {"error": "Unsupported file type. Upload a JPEG, PNG or WebP image."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(raw) < 32:  # empty / truncated uploads
+            return Response(
+                {"error": "The uploaded file appears to be empty."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        image_bytes = raw
+        mime_type = content_type or "image/jpeg"
     elif image_base64:
+        if len(image_base64) > MAX_SCAN_BYTES * 2:
+            return Response(
+                {"error": "Image too large (max 8 MB). Please upload a smaller photo."},
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            )
         import base64
         if "," in image_base64:
             header, encoded = image_base64.split(",", 1)
@@ -424,6 +462,7 @@ def api_pantry_scan_image(request):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@scoped("can_cook")
 def api_can_cook(request):
     """
     Calculate recipes match against user pantry ingredients.
@@ -528,6 +567,7 @@ def _check_lmstudio_health():
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@scoped("ai_meta")
 def api_ai_providers(request):
     """Return live available AI configurations with real-time health verification."""
     api_key = getattr(settings, "GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
@@ -565,6 +605,7 @@ def api_ai_providers(request):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@scoped("ai_meta")
 def api_ai_models(request):
     """List available Google Gemini models dynamically from the Google AI Studio endpoint."""
     api_key = getattr(settings, "GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
@@ -665,6 +706,7 @@ def api_ai_models(request):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@scoped("telegram_link")
 def api_telegram_link(request):
     """Generate instant Telegram Bot connection handshake link."""
     user = request.user if request.user.is_authenticated else User.objects.first()
@@ -687,6 +729,7 @@ def api_telegram_link(request):
 
 @api_view(["GET", "POST"])
 @permission_classes([AllowAny])
+@scoped("ai", "ai_day")
 def ai_suggestions_api(request):
     """
     Generate AI recipe ideas from pantry ingredients or custom ingredient list.
@@ -771,6 +814,7 @@ def ai_suggestions_api(request):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@scoped("ai", "ai_day")
 def ai_recipe_detail_api(request, recipe_name):
     """Get full master chef recipe breakdown for an AI suggested dish."""
     provider = request.GET.get("provider")
@@ -785,6 +829,7 @@ def ai_recipe_detail_api(request, recipe_name):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@scoped("ai", "ai_day")
 def api_recipe_chat(request):
     """
     AI Sous-Chef interactive conversation about a specific recipe.
@@ -832,6 +877,7 @@ def api_recipe_chat(request):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@scoped("shopping")
 def api_shopping_list_get(request):
     """Retrieve all shopping list items from the database."""
     user = request.user if request.user.is_authenticated else None
@@ -859,6 +905,7 @@ def api_shopping_list_get(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@scoped("shopping")
 def api_shopping_list_add(request):
     """Add a single item or multiple items to the shopping list."""
     user = request.user if request.user.is_authenticated else None
@@ -913,6 +960,7 @@ def api_shopping_list_add(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@scoped("shopping")
 def api_shopping_list_sync(request):
     """Bulk sync entire local shopping list into the database."""
     user = request.user if request.user.is_authenticated else None
@@ -951,6 +999,7 @@ def api_shopping_list_sync(request):
 
 @api_view(["PATCH", "PUT"])
 @permission_classes([AllowAny])
+@scoped("shopping")
 def api_shopping_list_toggle(request, item_id):
     """Toggle or update an existing shopping list item."""
     try:
@@ -971,6 +1020,7 @@ def api_shopping_list_toggle(request, item_id):
 
 @api_view(["DELETE"])
 @permission_classes([AllowAny])
+@scoped("shopping")
 def api_shopping_list_remove(request, item_id):
     """Remove a single item from the shopping list."""
     ShoppingListItem.objects.filter(id=item_id).delete()
@@ -979,6 +1029,7 @@ def api_shopping_list_remove(request, item_id):
 
 @api_view(["POST", "DELETE"])
 @permission_classes([AllowAny])
+@scoped("shopping")
 def api_shopping_list_clear(request):
     """Clear completed items or all items from the shopping list."""
     user = request.user if request.user.is_authenticated else None
@@ -1151,6 +1202,7 @@ def ai_recipe_detail(request, name):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@scoped("ai", "ai_hour")
 def api_ai_stream_recipe(request):
     """
     Stream live gourmet recipe token-by-token using Server-Sent Events (SSE).
@@ -1202,11 +1254,25 @@ def api_telegram_get_link(request):
 @csrf_exempt
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@scoped("telegram_webhook")
 def api_telegram_webhook(request):
     """
     Telegram Bot Webhook endpoint.
     Handles bot commands: /start <token>, /pantry, /add <item>, /remove <item>, /cook, /shoppinglist
     """
+    # Optional shared-secret verification (Telegram sends the header you
+    # configured via setWebhook secret_token). Enables a public webhook URL.
+    expected_secret = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "") or getattr(
+        settings, "TELEGRAM_WEBHOOK_SECRET", ""
+    )
+    if expected_secret:
+        provided = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if provided != expected_secret:
+            return Response(
+                {"error": "Invalid webhook secret."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
     update = request.data
     message = update.get("message") or update.get("channel_post")
     if not message:

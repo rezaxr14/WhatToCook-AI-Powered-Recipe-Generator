@@ -220,5 +220,21 @@
     "ctaSub": "Tell WhatToCook what’s in your kitchen.",
     "ctaStart": "Start Cooking",
     "loading": "Preparing your kitchen..."
+  },
+  "tour": {
+    "watch": "Watch the film",
+    "exit": "Exit",
+    "play": "Play",
+    "pause": "Pause",
+    "replay": "Replay",
+    "hintPause": "press space to pause",
+    "hintResume": "space to resume",
+    "stopHero": "The Arrival",
+    "stopFridge": "Open the Fridge",
+    "stopAI": "AI Awakens",
+    "stopGalaxy": "The Galaxy",
+    "stopCook": "Cooking",
+    "stopDish": "The Dish",
+    "stopFinale": "Homecoming"
   }
 }

@@ -21,7 +21,7 @@ test.describe('Landing Journey', () => {
   test('3D world mounts and the loading veil lifts', async ({ page }) => {
     await page.goto('/');
     const canvas = page.locator('canvas');
-    await expect(canvas).toBeVisible();
+    await expect(canvas).toBeVisible({ timeout: 25000 });
 
     // The loading overlay fades away once the scene reports ready
     await expect(page.getByText(/Preparing your kitchen/i)).toBeVisible({ timeout: 5000 });

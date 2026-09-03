@@ -34,17 +34,36 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 const FirstVisitGate: React.FC<{ onNeedSelection: () => void }> = ({ onNeedSelection }) => {
   const cbRef = React.useRef(onNeedSelection);
   cbRef.current = onNeedSelection;
+  const openedRef = React.useRef(false);
+
+  const fire = React.useCallback(() => {
+    if (openedRef.current) return; // already shown — never nag after a dismissal
+    let chosen = false;
+    try {
+      chosen = !!localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    } catch {
+      chosen = true; // storage unavailable — skip gate
+    }
+    if (chosen) return;
+    openedRef.current = true;
+    cbRef.current();
+  }, []);
 
   React.useEffect(() => {
-    try {
-      if (!localStorage.getItem(LANGUAGE_STORAGE_KEY)) {
-        const t = setTimeout(() => cbRef.current(), 600);
-        return () => clearTimeout(t);
-      }
-    } catch {
-      /* storage unavailable — skip gate */
-    }
-  }, []);
+    // First paint can be stalled for several seconds while the heavy 3D
+    // landing scene initialises (software WebGL, low-end GPUs, dev cold
+    // compile), which blocks the main thread and pushes setTimeout
+    // callbacks far past their delay. Fire staggered attempts so the
+    // picker reliably appears the moment the thread frees up.
+    const t1 = setTimeout(fire, 600);
+    const t2 = setTimeout(fire, 6000);
+    const t3 = setTimeout(fire, 15000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [fire]);
   return null;
 };
 

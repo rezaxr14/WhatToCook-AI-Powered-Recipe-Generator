@@ -123,14 +123,36 @@ Target: **100% passing tests** covering:
 - Multimodal Vision Scanner & Fallback Resiliency
 - Live AI Recipe Generation & Streaming Endpoints
 - Platform endpoints (/api/stats/, /api/health/) & legacy route namespacing
+- Rate limiting: every scope trips a clean `429` with `Retry-After`
+  (`tests/test_throttling.py`)
 
-Frontend production build + end-to-end Playwright suite (22 tests across desktop, tablet and iPhone viewports, including i18n/RTL and responsive navbar coverage):
+Frontend production build + end-to-end Playwright suite (23 tests across the 3D
+landing journey, full user flows, i18n/RTL and responsive viewports):
 
 ```bash
 cd frontend
 npm run build          # typecheck + vite build
 npm run test:e2e       # starts Vite automatically; backend on :8000 required
+# refresh the journey screenshots in docs/screenshots (dev servers running):
+node scripts/recapture-journey.cjs && node scripts/recapture-landing.cjs
 ```
+
+## 🛡️ Production hardening
+
+All API traffic is rate-limited per endpoint scope with anon/user-aware
+buckets and `Retry-After` responses — see `GetFood/rate_limits.py` (rates
+tunable via env), `GetFood/throttles.py`, and `WhatToCook/settings.py`
+(`USE_RATE_LIMITS=1` enables; on by default). Cache uses a dummy local
+backend when Redis is absent.
+
+## 🖼️ Curated dish photography
+
+Every recipe, dish suggestion and pantry ingredient resolves to an
+accurate, verified photo (no placeholder repeats): the 12 catalog recipes
+ship with original self-hosted photos under `media/recipes/`, while
+keyword maps in `GetFood/utils.py` and `frontend/src/utils/imageUtils.ts`
+are audited against real stock imagery. Run
+`python manage.py seed_recipes` after a fresh DB to bind the photos.
 
 ---
 

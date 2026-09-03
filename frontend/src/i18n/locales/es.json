@@ -220,5 +220,21 @@
     "ctaSub": "Dile a WhatToCook qué hay en tu cocina.",
     "ctaStart": "Empieza a cocinar",
     "loading": "Preparando tu cocina..."
+  },
+  "tour": {
+    "watch": "Ver la película",
+    "exit": "Salir",
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "replay": "Repetir",
+    "hintPause": "espacio: pausa",
+    "hintResume": "espacio: seguir",
+    "stopHero": "La llegada",
+    "stopFridge": "Abre la nevera",
+    "stopAI": "La IA despierta",
+    "stopGalaxy": "La galaxia",
+    "stopCook": "Cocinando",
+    "stopDish": "El plato",
+    "stopFinale": "De vuelta a casa"
   }
 }

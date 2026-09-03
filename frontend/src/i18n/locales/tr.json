@@ -218,5 +218,21 @@
     "ctaSub": "WhatToCook’a mutfağında olanı söyle.",
     "ctaStart": "Pişirmeye Başla",
     "loading": "Mutfığın hazırlanıyor..."
+  },
+  "tour": {
+    "watch": "Filmi izle",
+    "exit": "Çıkış",
+    "play": "Oynat",
+    "pause": "Duraklat",
+    "replay": "Tekrar izle",
+    "hintPause": "boşluk: duraklat",
+    "hintResume": "boşluk: devam",
+    "stopHero": "Varış",
+    "stopFridge": "Buzdolabını Aç",
+    "stopAI": "YZ Uyanıyor",
+    "stopGalaxy": "Galaksi",
+    "stopCook": "Pişirme",
+    "stopDish": "Yemek",
+    "stopFinale": "Eve Dönüş"
   }
 }

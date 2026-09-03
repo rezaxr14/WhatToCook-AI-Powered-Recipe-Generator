@@ -1,12 +1,14 @@
 import React, { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { journey, seg, win, isMobileDevice, prefersReducedMotion } from './state';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { journey, seg, win, pointer, isMobileDevice, prefersReducedMotion, canAffordPostFX } from './state';
 import { KitchenRoom } from './KitchenRoom';
 import { Constellation } from './Constellation';
 import { Galaxy, RecipeMatchCards } from './Galaxy';
 import { Cooking } from './Cooking';
-import { DustField } from './Effects';
+import { DustField, EmberField, ShootingStar, Starback } from './Effects';
+import { CinematicFX } from './FX';
 import { FadeHtml } from './FadeHtml';
 import { useTranslation } from 'react-i18next';
 
@@ -37,11 +39,11 @@ const KEYS: Key[] = [
   { p: 0.58, pos: [0, 1.5, 3.6], look: [0, 1.35, -1.0] },
   { p: 0.64, pos: [0, 2.1, 5.0], look: [0, 1.15, 0] },
   { p: 0.73, pos: [1.7, 1.75, 4.0], look: [0, 1.15, 0] },
-  { p: 0.9, pos: [0, 1.8, 7.2], look: [0, 1.25, 0] },
-  { p: 1.0, pos: [0, 1.6, 5.6], look: [0, 1.15, 0.4] },
+  { p: 0.9, pos: [0, 1.8, 7.2], look: [0, 1.1, 0] },
+  { p: 1.0, pos: [0, 1.65, 5.9], look: [0, 1.02, 0.2] },
 ];
 
-const DISH = new THREE.Vector3(0, 1.2, 0);
+const DISH = new THREE.Vector3(0, 1.06, 0);
 
 // Scratch vectors — reused every frame so the rig allocates nothing at 60fps.
 const _posA = new THREE.Vector3();
@@ -49,31 +51,63 @@ const _posB = new THREE.Vector3();
 const _lookA = new THREE.Vector3();
 const _lookB = new THREE.Vector3();
 const _orb = new THREE.Vector3();
+const _sway = new THREE.Vector3();
 
 const CameraRig: React.FC = () => {
   const target = useRef({ pos: new THREE.Vector3(), look: new THREE.Vector3() });
+  const reduced = useRef(prefersReducedMotion());
 
-  useFrame(({ camera }, delta) => {
+  useFrame(({ camera, clock }, delta) => {
     const p = journey.progress;
     const { pos, look } = target.current;
+    const t = clock.elapsedTime;
 
     let i = 0;
     while (i < KEYS.length - 2 && p > KEYS[i + 1].p) i++;
     const a = KEYS[i];
     const b = KEYS[i + 1];
-    const t = seg(p, a.p, b.p);
-    pos.lerpVectors(_posA.fromArray(a.pos), _posB.fromArray(b.pos), t);
-    look.lerpVectors(_lookA.fromArray(a.look), _lookB.fromArray(b.look), t);
+    const tt = seg(p, a.p, b.p);
+    pos.lerpVectors(_posA.fromArray(a.pos), _posB.fromArray(b.pos), tt);
+    look.lerpVectors(_lookA.fromArray(a.look), _lookB.fromArray(b.look), tt);
 
     // Cinematic orbit around the finished dish during chapter VI
     const orbitW = seg(p, 0.735, 0.79) * (1 - seg(p, 0.845, 0.9));
     if (orbitW > 0.001) {
       const th = THREE.MathUtils.lerp(-0.7, 2.6, seg(p, 0.735, 0.895));
-      pos.lerp(_orb.set(Math.sin(th) * 3.3, 0.5, Math.cos(th) * 3.3).add(DISH), orbitW);
+      pos.lerp(_orb.set(Math.sin(th) * 3.3, 0.45, Math.cos(th) * 3.3).add(DISH), orbitW);
       look.lerp(DISH, orbitW);
     }
 
-    if (prefersReducedMotion()) {
+    // Idle breathing drift at the hero (keeps even the first frame alive)
+    const heroBreath = (1 - seg(p, 0, 0.1)) * (pointer.active ? 0.25 : 1);
+    pos.x += Math.sin(t * 0.21) * 0.045 * heroBreath;
+    pos.y += Math.sin(t * 0.17 + 1.3) * 0.02 * heroBreath;
+    look.y += Math.sin(t * 0.13) * 0.02 * heroBreath;
+
+    // Mouse parallax — cinematic "shot on a gimbal" sway (desktop mouse only)
+    if (pointer.active && !reduced.current) {
+      pointer.x += (pointer.tx - pointer.x) * Math.min(1, delta * 3.2);
+      pointer.y += (pointer.ty - pointer.y) * Math.min(1, delta * 3.2);
+      pos.x += pointer.x * 0.16;
+      pos.y += -pointer.y * 0.08;
+      look.x += pointer.x * 0.34;
+      look.y += -pointer.y * 0.22;
+    } else {
+      pointer.x += (0 - pointer.x) * Math.min(1, delta * 2);
+      pointer.y += (0 - pointer.y) * Math.min(1, delta * 2);
+    }
+
+    // Whisker-soft handheld life during active chapters
+    if (!reduced.current && p > 0.2) {
+      _sway.set(
+        Math.sin(t * 1.3) * 0.006 + Math.sin(t * 2.7) * 0.004,
+        Math.cos(t * 1.1) * 0.005,
+        Math.sin(t * 0.9) * 0.004
+      );
+      pos.add(_sway);
+    }
+
+    if (reduced.current) {
       camera.position.copy(pos);
     } else {
       const k = 1 - Math.exp(-5 * delta);
@@ -93,6 +127,7 @@ const ChapterLights: React.FC = () => {
   const fill = useRef<THREE.DirectionalLight>(null);
   const aiLight = useRef<THREE.PointLight>(null);
   const keyLight = useRef<THREE.SpotLight>(null);
+  const galaxyFill = useRef<THREE.PointLight>(null);
 
   useFrame(({ clock }) => {
     const p = journey.progress;
@@ -101,9 +136,16 @@ const ChapterLights: React.FC = () => {
     if (hemi.current) hemi.current.intensity = 0.45 + finale * 0.4;
     if (fill.current) fill.current.intensity = 0.55 + finale * 0.5;
     if (aiLight.current) {
-      aiLight.current.intensity = win(p, 0.33, 0.38, 0.46, 0.52) * (2.2 + Math.sin(clock.elapsedTime * 1.4) * 0.3);
+      aiLight.current.intensity =
+        win(p, 0.33, 0.38, 0.46, 0.52) * (2.2 + Math.sin(clock.elapsedTime * 1.4) * 0.3);
     }
-    if (keyLight.current) keyLight.current.intensity = 1.4 * win(p, 0.72, 0.78, 1.02, 1.04) + finale * 0.8;
+    if (galaxyFill.current) {
+      galaxyFill.current.intensity = win(p, 0.44, 0.5, 0.58, 0.64) * 1.2;
+    }
+    if (keyLight.current) {
+      keyLight.current.intensity = 1.4 * win(p, 0.72, 0.78, 1.02, 1.04) + finale * 0.8;
+      keyLight.current.visible = keyLight.current.intensity > 0.02;
+    }
   });
 
   return (
@@ -112,6 +154,7 @@ const ChapterLights: React.FC = () => {
       <hemisphereLight ref={hemi} args={['#6b543a', '#1a120b', 0.45]} />
       <directionalLight ref={fill} position={[2.5, 5.5, 7]} intensity={0.55} color="#ffe6c4" />
       <pointLight ref={aiLight} position={[0, 3.4, 2.4]} intensity={0} distance={12} decay={1.6} color="#ffe1a8" />
+      <pointLight ref={galaxyFill} position={[0, 2.2, 4]} intensity={0} distance={18} decay={1.4} color="#ffcf9a" />
       <spotLight
         ref={keyLight}
         position={[3.2, 6.5, 4.5]}
@@ -121,6 +164,10 @@ const ChapterLights: React.FC = () => {
         distance={20}
         decay={1.4}
         color="#fff1dc"
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+        shadow-bias={-0.0004}
       />
     </>
   );
@@ -162,16 +209,35 @@ const FridgeLabels: React.FC = () => {
 
 export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => {
   const mobile = isMobileDevice();
+  const reduced = prefersReducedMotion();
+  const fx = canAffordPostFX();
 
   return (
     <Canvas
       dpr={mobile ? [1, 1.5] : [1, 1.75]}
-      camera={{ position: [0, 1.6, 7.6], fov: mobile ? 58 : 44, near: 0.1, far: 70 }}
-      gl={{ antialias: !mobile, alpha: false, powerPreference: 'high-performance' }}
-      onCreated={({ scene, camera }) => {
+      camera={{ position: [0, 1.6, 7.6], fov: mobile ? 58 : 44, near: 0.1, far: 80 }}
+      gl={{
+        antialias: !mobile,
+        alpha: false,
+        powerPreference: 'high-performance',
+      }}
+      shadows="soft"
+      onCreated={({ scene, camera, gl }) => {
         scene.fog = new THREE.FogExp2('#070503', 0.042);
         (window as unknown as Record<string, unknown>).__wtcScene = scene;
         (window as unknown as Record<string, unknown>).__wtcCamera = camera;
+        (window as unknown as Record<string, unknown>).__wtcRenderer = gl;
+
+        // Procedural studio environment (image-based lighting) — no network.
+        if (!prefersReducedMotion()) {
+          const pmrem = new THREE.PMREMGenerator(gl);
+          const env = new RoomEnvironment();
+          const envRt = pmrem.fromScene(env, 0.04);
+          scene.environment = envRt.texture;
+          (scene as unknown as { environmentIntensity?: number }).environmentIntensity = 0.5;
+          pmrem.dispose();
+          envRt.dispose();
+        }
         setTimeout(onReady, 600);
       }}
       style={{ position: 'absolute', inset: 0, background: '#070503' }}
@@ -185,7 +251,11 @@ export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => 
       <RecipeMatchCards />
       <Cooking />
       <FridgeLabels />
-      <DustField count={mobile ? 70 : 160} />
+      <Starback />
+      <ShootingStar />
+      <EmberField position={[0, 0.9, -0.1]} window={[0.93, 0.95, 1.01, 1.02]} count={10} spread={1.1} rise={0.8} />
+      <DustField count={mobile ? 70 : 190} />
+      {fx && !reduced && <CinematicFX />}
     </Canvas>
   );
 };

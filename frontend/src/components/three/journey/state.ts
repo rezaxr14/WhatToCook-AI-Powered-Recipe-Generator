@@ -7,9 +7,17 @@ import * as THREE from 'three';
  */
 export const journey = { progress: 0 };
 
+/** Smoothed pointer (normalized -1..1) for cinematic parallax. */
+export const pointer = {
+  x: 0,
+  y: 0,
+  tx: 0,
+  ty: 0,
+  active: false,
+};
+
 /** Smooth 0..1 ramp of p between a..b. */
-export const seg = (p: number, a: number, b: number): number =>
-  THREE.MathUtils.smoothstep(p, a, b);
+export const seg = (p: number, a: number, b: number): number => THREE.MathUtils.smoothstep(p, a, b);
 
 /** Window ramp: 0 → 1 between a..b, 1 → 0 between c..d. */
 export const win = (p: number, a: number, b: number, c: number, d: number): number =>
@@ -29,4 +37,32 @@ export const prefersReducedMotion = (): boolean => {
   } catch {
     return false;
   }
+};
+
+/** Rough GPU-class check: true when we can afford heavy post-processing. */
+export const canAffordPostFX = (): boolean => {
+  try {
+    if (prefersReducedMotion()) return false;
+    if (isMobileDevice()) {
+      // Mobile: mid-range+ only (>=4GB RAM heuristic) + landscape-ish dpr cap
+      const mem = (navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 4;
+      return mem >= 4;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** Hook up (once) the global mouse parallax source. */
+export const initPointerParallax = (): (() => void) => {
+  if (typeof window === 'undefined') return () => {};
+  const onMove = (e: PointerEvent) => {
+    if (e.pointerType !== 'mouse') return;
+    pointer.active = true;
+    pointer.tx = (e.clientX / window.innerWidth) * 2 - 1;
+    pointer.ty = -((e.clientY / window.innerHeight) * 2 - 1);
+  };
+  window.addEventListener('pointermove', onMove, { passive: true });
+  return () => window.removeEventListener('pointermove', onMove);
 };

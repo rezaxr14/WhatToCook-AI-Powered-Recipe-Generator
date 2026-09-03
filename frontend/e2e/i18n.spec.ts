@@ -8,7 +8,9 @@ test.describe('Language selection & i18n', () => {
     // Fresh context: no stored language -> modal must appear
     await page.goto('/');
     const dialog = page.getByRole('dialog');
-    await expect(dialog).toBeVisible();
+    // First paint can stall several seconds while the 3D landing scene
+    // initialises (software WebGL) — the modal shows once the thread frees.
+    await expect(dialog).toBeVisible({ timeout: 20000 });
     await expect(page.getByText('Choose your language')).toBeVisible();
 
     // Pick Turkish

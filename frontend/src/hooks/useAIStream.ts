@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import i18n from '../i18n';
+import { formatRetryAfter } from '../api/client';
 
 interface UseAIStreamOptions {
   onChunk?: (chunk: string, accumulated: string) => void;
@@ -34,7 +35,19 @@ export const useAIStream = (options?: UseAIStreamOptions) => {
         });
 
         if (!response.ok) {
-          throw new Error(`Stream request failed with status ${response.status}`);
+          let message = `Stream request failed with status ${response.status}`;
+          try {
+            const body = await response.json();
+            if (response.status === 429) {
+              const wait = body?.retry_after ?? Number(response.headers.get('Retry-After')) ?? 30;
+              message = `You're moving fast! ⏳ Please wait ${formatRetryAfter(wait)} before trying again.`;
+            } else if (typeof body?.detail === 'string') {
+              message = body.detail;
+            }
+          } catch {
+            /* non-JSON error body — keep default message */
+          }
+          throw new Error(message);
         }
 
         if (!response.body) {

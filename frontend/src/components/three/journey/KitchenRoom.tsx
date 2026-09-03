@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { journey, seg } from './state';
@@ -9,14 +9,104 @@ import { SteamEmitter } from './Effects';
  * Chapter I environment: a dark, cinematic kitchen. The refrigerator is the
  * centerpiece — its door swings open as the camera approaches (scroll 0.12–0.20)
  * spilling warm light across the room. The whole room sinks into darkness for
- * the middle chapters and rises again, bright and warm, for the finale.
+ * the middle chapters and rises again, bright and warm, for the finale, where
+ * a bistro table rises at center stage for the finished dish.
  */
-export const KitchenRoom: React.FC = () => {
+
+/** 1D canvas texture helpers (brick/tile/herringbone) — zero network assets. */
+const makeCanvasTexture = (
+  draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
+  w = 256,
+  h = 256,
+  repeatX = 1,
+  repeatY = 1
+): THREE.CanvasTexture => {
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  draw(ctx, w, h);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeatX, repeatY);
+  tex.anisotropy = 4;
+  return tex;
+};
+
+const KitchenRoom: React.FC = () => {
   const room = useRef<THREE.Group>(null);
   const door = useRef<THREE.Group>(null);
   const fridgeLight = useRef<THREE.PointLight>(null);
   const bulb1 = useRef<THREE.PointLight>(null);
   const bulb2 = useRef<THREE.PointLight>(null);
+  const table = useRef<THREE.Group>(null);
+  const moonLight = useRef<THREE.PointLight>(null);
+  const windowGlow = useRef<THREE.MeshBasicMaterial>(null);
+
+  // Tile + wood textures built once
+  const tiles = useMemo(
+    () =>
+      makeCanvasTexture((ctx, w, h) => {
+        ctx.fillStyle = '#3a2f22';
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = 'rgba(245,235,215,0.16)';
+        ctx.lineWidth = 3;
+        const cw = w / 4;
+        for (let x = 0; x < w; x += cw) {
+          for (let y = 0; y < h; y += h / 3) {
+            ctx.strokeRect(x + 2, y + 2, cw - 4, h / 3 - 4);
+          }
+        }
+      },
+      256,
+      256,
+      8,
+      2
+    ),
+    []
+  );
+  const plankTex = useMemo(
+    () =>
+      makeCanvasTexture((ctx, w, h) => {
+        ctx.fillStyle = '#4a3624';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(30,20,10,0.25)';
+        const rows = 9;
+        for (let i = 0; i < rows; i++) {
+          const y = (h / rows) * (i + 0.5);
+          ctx.fillRect(0, y - 1, w, 2);
+          ctx.fillRect((i % 2) * (w / 2), y - h / rows + 2, 2, h / rows - 4);
+        }
+      },
+      512,
+      512,
+      12,
+      12
+    ),
+    []
+  );
+  const wood = useMemo(
+    () =>
+      makeCanvasTexture((ctx, w, h) => {
+        ctx.fillStyle = '#5a4027';
+        ctx.fillRect(0, 0, w, h);
+        for (let i = 0; i < 40; i++) {
+          ctx.strokeStyle = `rgba(${40 + Math.random() * 40},${25 + Math.random() * 30},${10 + Math.random() * 20},0.22)`;
+          ctx.lineWidth = 1 + Math.random() * 3;
+          ctx.beginPath();
+          const y = Math.random() * h;
+          ctx.moveTo(0, y);
+          ctx.bezierCurveTo(w * 0.3, y + 6, w * 0.7, y - 6, w, y + 2);
+          ctx.stroke();
+        }
+      },
+      512,
+      512,
+      2,
+      2
+    ),
+    []
+  );
 
   useFrame(({ clock }) => {
     const p = journey.progress;
@@ -40,18 +130,30 @@ export const KitchenRoom: React.FC = () => {
     const flicker = 0.94 + Math.sin(clock.elapsedTime * 9.3) * 0.03 + Math.sin(clock.elapsedTime * 23.7) * 0.02;
     if (bulb1.current) bulb1.current.intensity = 3.4 * warmth * flicker;
     if (bulb2.current) bulb2.current.intensity = 2.8 * warmth * (2 - flicker);
+
+    // Moonlight: most present at hero, fades as the room sinks.
+    if (moonLight.current) moonLight.current.intensity = 0.9 * (1 - sink) * (0.6 + Math.sin(clock.elapsedTime * 0.3) * 0.08);
+    if (windowGlow.current) windowGlow.current.opacity = 0.5 * (1 - sink);
+
+    // Bistro table rises for the finale meal.
+    if (table.current) {
+      const rise = seg(p, 0.86, 0.93);
+      table.current.visible = rise > 0.01;
+      table.current.scale.setScalar(Math.max(rise, 0.001));
+      table.current.position.y = -0.01 * (1 - rise);
+    }
   });
 
   return (
     <group ref={room}>
       {/* Floor — warm walnut catching pools of light */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <circleGeometry args={[26, 48]} />
-        <meshPhysicalMaterial color="#4a3624" roughness={0.28} clearcoat={0.5} clearcoatRoughness={0.3} />
+        <meshPhysicalMaterial map={plankTex} color="#ffffff" roughness={0.3} clearcoat={0.4} clearcoatRoughness={0.35} />
       </mesh>
 
       {/* Back wall */}
-      <mesh position={[0, 5, -6.6]}>
+      <mesh position={[0, 5, -6.6]} receiveShadow>
         <planeGeometry args={[42, 12]} />
         <meshStandardMaterial color="#33271b" roughness={0.9} />
       </mesh>
@@ -61,18 +163,103 @@ export const KitchenRoom: React.FC = () => {
         <meshStandardMaterial color="#2b2117" roughness={0.95} />
       </mesh>
 
+      {/* ---------- Moonlit window on the far wall ---------- */}
+      <group position={[-4.6, 3.05, -6.55]}>
+        {/* Frame */}
+        <mesh position={[0, 0, -0.02]}>
+          <boxGeometry args={[2.3, 1.7, 0.14]} />
+          <meshPhysicalMaterial color="#241a10" roughness={0.6} metalness={0.4} />
+        </mesh>
+        {/* Night sky pane */}
+        <mesh position={[0, 0, 0.01]}>
+          <planeGeometry args={[2.05, 1.45]} />
+          <meshBasicMaterial ref={windowGlow} color="#0e1428" toneMapped={false} />
+        </mesh>
+        {/* Moon */}
+        <mesh position={[0.62, 0.44, 0.03]}>
+          <sphereGeometry args={[0.16, 24, 24]} />
+          <meshBasicMaterial color="#e8ecf5" toneMapped={false} />
+        </mesh>
+        {/* Cross bars */}
+        {[0].map((y) => (
+          <mesh key={y} position={[0, 0, 0.03]} rotation={[0, 0, Math.PI / 2]}>
+            <boxGeometry args={[2.1, 0.05, 0.03]} />
+            <meshStandardMaterial color="#1c130b" />
+          </mesh>
+        ))}
+        <mesh position={[0, 0, 0.03]}>
+          <boxGeometry args={[0.05, 1.5, 0.03]} />
+          <meshStandardMaterial color="#1c130b" />
+        </mesh>
+      </group>
+      <pointLight ref={moonLight} position={[-4.6, 3.2, -5.6]} intensity={0} distance={11} decay={1.6} color="#9db8e8" />
+
+      {/* Tile backsplash band along the far wall */}
+      <mesh position={[-0.8, 2.15, -6.53]}>
+        <planeGeometry args={[9, 1.5]} />
+        <meshStandardMaterial map={tiles} color="#ffffff" roughness={0.5} />
+      </mesh>
+      <mesh position={[-0.8, 2.9, -6.58]}>
+        <boxGeometry args={[9.05, 0.06, 0.06]} />
+        <meshPhysicalMaterial color="#6b5235" roughness={0.4} metalness={0.5} />
+      </mesh>
+
       {/* Counter along the back */}
-      <mesh position={[-0.6, 0.45, -3.3]}>
+      <mesh position={[-0.6, 0.45, -3.3]} receiveShadow>
         <boxGeometry args={[6.6, 0.9, 1.25]} />
         <meshStandardMaterial color="#57422c" roughness={0.75} />
       </mesh>
-      <mesh position={[-0.6, 0.94, -3.3]}>
+      <mesh position={[-0.6, 0.94, -3.3]} receiveShadow>
         <boxGeometry args={[6.7, 0.07, 1.32]} />
-        <meshPhysicalMaterial color="#7a6a55" roughness={0.3} clearcoat={0.8} clearcoatRoughness={0.25} />
+        <meshPhysicalMaterial color="#7a6a55" roughness={0.28} clearcoat={0.8} clearcoatRoughness={0.25} />
       </mesh>
 
+      {/* Counter items: cutting board, knife, bowl, jars, hanging herbs */}
+      <group position={[-2.35, 0.975, -3.4]}>
+        {/* cutting board */}
+        <mesh rotation={[0, 0.6, 0]}>
+          <boxGeometry args={[0.85, 0.035, 0.4]} />
+          <meshPhysicalMaterial color="#9c6b38" roughness={0.5} />
+        </mesh>
+        <mesh position={[0.28, 0.08, 0.02]} rotation={[Math.PI / 2, 0.1, 0]}>
+          <boxGeometry args={[0.42, 0.05, 0.02]} />
+          <meshPhysicalMaterial color="#c9cdd4" metalness={0.85} roughness={0.22} />
+        </mesh>
+      </group>
+      {/* mixing bowl */}
+      <mesh position={[-1.35, 1.06, -3.15]}>
+        <sphereGeometry args={[0.24, 28, 20, 0, Math.PI * 2, 0, Math.PI / 2.6]} />
+        <meshPhysicalMaterial color="#8a8f98" roughness={0.25} metalness={0.7} />
+      </mesh>
+      {/* spice jars row */}
+      {[0.7, 1.0, 1.3].map((x, i) => (
+        <group key={i} position={[x, 0.975, -3.0]}>
+          <mesh>
+            <cylinderGeometry args={[0.055, 0.05, 0.16, 12]} />
+            <meshPhysicalMaterial color={i === 1 ? '#4a5560' : '#5d4a34'} roughness={0.3} />
+          </mesh>
+          <mesh position={[0, 0.1, 0]}>
+            <cylinderGeometry args={[0.06, 0.06, 0.04, 12]} />
+            <meshPhysicalMaterial color="#2c2c30" roughness={0.4} />
+          </mesh>
+        </group>
+      ))}
+      {/* hanging herb bundle from a wall hook */}
+      <group position={[1.9, 2.62, -3.25]}>
+        <mesh>
+          <cylinderGeometry args={[0.01, 0.01, 0.24, 6]} />
+          <meshStandardMaterial color="#1a1a1a" />
+        </mesh>
+        {Array.from({ length: 7 }, (_, i) => (
+          <mesh key={i} position={[(i - 3) * 0.035, -0.3, Math.sin(i * 1.7) * 0.02]} rotation={[0.4 + i * 0.09, i * 0.8, 0.12]}>
+            <boxGeometry args={[0.012, 0.26, 0.035]} />
+            <meshStandardMaterial color="#4c6b2f" roughness={0.7} />
+          </mesh>
+        ))}
+      </group>
+
       {/* Pot with gentle steam on the stove area */}
-      <mesh position={[0.4, 1.12, -3.25]}>
+      <mesh position={[0.4, 1.12, -3.25]} castShadow>
         <cylinderGeometry args={[0.3, 0.27, 0.26, 28]} />
         <meshPhysicalMaterial color="#26262c" roughness={0.35} metalness={0.75} />
       </mesh>
@@ -95,7 +282,7 @@ export const KitchenRoom: React.FC = () => {
           </mesh>
           <mesh position={[0, 2.7, 0]}>
             <sphereGeometry args={[0.055, 16, 16]} />
-            <meshStandardMaterial color="#ffd9a0" emissive="#ffb45e" emissiveIntensity={3} />
+            <meshStandardMaterial color="#ffd9a0" emissive="#ffb45e" emissiveIntensity={3} toneMapped={false} />
           </mesh>
           <pointLight
             ref={i === 0 ? bulb1 : bulb2}
@@ -111,7 +298,7 @@ export const KitchenRoom: React.FC = () => {
       {/* ============ THE REFRIGERATOR ============ */}
       <group position={[2.4, 0, -3.05]}>
         {/* Body — five panels, open at the front so the interior reads */}
-        <mesh position={[0, 1.75, -0.525]}>
+        <mesh position={[0, 1.75, -0.525]} castShadow>
           <boxGeometry args={[1.7, 3.5, 0.1]} />
           <meshStandardMaterial color="#4d565e" roughness={0.45} metalness={0.25} />
         </mesh>
@@ -158,15 +345,31 @@ export const KitchenRoom: React.FC = () => {
         <CheeseWedge position={[-0.62, 2.5125, 0.28]} scale={0.85} />
         <MilkCarton position={[0.42, 2.5125, -0.1]} rotation={[0, 0.4, 0]} scale={0.95} />
 
-        {/* Door — hinged on the left edge */}
+        {/* Door — hinged on the left edge, with playful magnet notes */}
         <group ref={door} position={[-0.85, 1.75, 0.585]}>
-          <mesh position={[0.85, 0, 0]}>
+          <mesh position={[0.85, 0, 0]} castShadow>
             <boxGeometry args={[1.68, 3.42, 0.09]} />
-            <meshStandardMaterial color="#525b64" roughness={0.4} metalness={0.3} />
+            <meshPhysicalMaterial color="#525b64" roughness={0.35} metalness={0.3} clearcoat={0.6} clearcoatRoughness={0.3} />
           </mesh>
           <mesh position={[1.56, 0.15, 0.09]} rotation={[0, 0, Math.PI / 2]}>
             <cylinderGeometry args={[0.022, 0.022, 0.7, 10]} />
             <meshStandardMaterial color="#c8ccd2" metalness={0.8} roughness={0.3} />
+          </mesh>
+          {/* magnets */}
+          {[
+            { p: [0.55, 1.1, 0.05] as [number, number, number], c: '#ffd9a0' },
+            { p: [0.42, 2.25, 0.05] as [number, number, number], c: '#f4e6c5' },
+            { p: [1.08, 1.75, 0.05] as [number, number, number], c: '#e3b9a2' },
+          ].map((m, i) => (
+            <mesh key={i} position={m.p}>
+              <boxGeometry args={[0.13, 0.15, 0.012]} />
+              <meshStandardMaterial color={m.c} emissive={m.c} emissiveIntensity={0.35} />
+            </mesh>
+          ))}
+          {/* handle */}
+          <mesh position={[1.5, 1.75, 0.045]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.028, 0.028, 0.5, 10]} />
+            <meshStandardMaterial color="#c8ccd2" metalness={0.85} roughness={0.25} />
           </mesh>
         </group>
 
@@ -179,38 +382,31 @@ export const KitchenRoom: React.FC = () => {
       <Tomato position={[-3.2, 0.975, -3.1]} scale={0.85} />
       <Garlic position={[-1.1, 0.975, -3.05]} scale={0.85} />
 
-      {/* Finale-only: the finished meal waits on the counter */}
-      <FinaleMeal />
+      {/* ============ Finale bistro table (dish settles on it) ============ */}
+      <group ref={table} position={[0, -0.01, 0]} scale={0.001} visible={false}>
+        {/* legs/pedestal */}
+        <mesh position={[0, 0.45, 0]} castShadow>
+          <cylinderGeometry args={[0.07, 0.1, 0.9, 18]} />
+          <meshStandardMaterial color="#241a10" roughness={0.6} />
+        </mesh>
+        <mesh position={[0, 0.005, 0]}>
+          <cylinderGeometry args={[0.42, 0.44, 0.045, 26]} />
+          <meshStandardMaterial color="#181008" roughness={0.8} />
+        </mesh>
+        {/* round wood top */}
+        <mesh position={[0, 0.935, 0]} castShadow receiveShadow>
+          <cylinderGeometry args={[1.04, 1.04, 0.06, 48]} />
+          <meshPhysicalMaterial map={wood} color="#ffffff" roughness={0.38} clearcoat={0.5} clearcoatRoughness={0.35} />
+        </mesh>
+        {/* linen runner */}
+        <mesh position={[0, 0.966, 0]}>
+          <cylinderGeometry args={[0.82, 0.82, 0.012, 48]} />
+          <meshPhysicalMaterial color="#efe6d8" roughness={0.9} />
+        </mesh>
+      </group>
     </group>
   );
 };
 
-/** A small plated dish that only appears during the bright return home. */
-const FinaleMeal: React.FC = () => {
-  const ref = useRef<THREE.Group>(null);
-  useFrame(() => {
-    const g = ref.current;
-    if (!g) return;
-    const p = journey.progress;
-    const s = seg(p, 0.9, 0.955);
-    g.scale.setScalar(Math.max(s, 0.001));
-    g.visible = s > 0.001;
-  });
-  return (
-    <group ref={ref} position={[-1.7, 1.0, -3.1]} scale={0.001}>
-      <mesh position={[0, 0.03, 0]}>
-        <cylinderGeometry args={[0.34, 0.28, 0.05, 36]} />
-        <meshPhysicalMaterial color="#f3ece1" roughness={0.25} clearcoat={0.9} />
-      </mesh>
-      <mesh position={[0, 0.09, 0]}>
-        <torusGeometry args={[0.2, 0.075, 12, 32]} />
-        <meshPhysicalMaterial color="#f0d9a8" roughness={0.5} />
-      </mesh>
-      <mesh position={[0, 0.15, 0]} scale={[1, 0.5, 1]}>
-        <sphereGeometry args={[0.13, 20, 20]} />
-        <meshPhysicalMaterial color="#b8402a" roughness={0.28} clearcoat={0.8} />
-      </mesh>
-      <SteamEmitter position={[0, 0.3, 0]} window={[0.93, 0.96, 1.01, 1.02]} count={6} rise={0.7} spread={0.15} />
-    </group>
-  );
-};
+export { KitchenRoom };
+export default KitchenRoom;

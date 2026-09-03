@@ -45,11 +45,53 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = _env_bool("DEBUG", "true")
 
+_IS_TESTING = "test" in [a for a in __import__("sys").argv]
+
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.environ.get("ALLOWED_HOSTS", "*").split(",")
+    for host in os.environ.get(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,0.0.0.0" if DEBUG else "",
+    ).split(",")
     if host.strip()
 ]
+if not ALLOWED_HOSTS:
+    raise RuntimeError(
+        "ALLOWED_HOSTS must be set when DEBUG=false (see .env.example)."
+    )
+
+# ---------------------------------------------------------------------------
+# Production security hardening (all tunable through the environment)
+# ---------------------------------------------------------------------------
+# When DEBUG=false we default every security switch to ON; set the matching
+# env var to "false" to override behind a TLS-terminating proxy that already
+# sets these headers itself.
+_HTTPS = not DEBUG or _env_bool("FORCE_HTTPS", "false")
+
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = os.environ.get("SECURE_REFERRER_POLICY", "strict-origin-when-cross-origin")
+X_FRAME_OPTIONS = "DENY"
+
+# Only meaningful behind a TLS-terminating reverse proxy (nginx):
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+if _env_bool("SECURE_SSL_REDIRECT", "true" if _HTTPS else "false"):
+    SECURE_SSL_REDIRECT = True
+
+SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", "true" if _HTTPS else "false")
+CSRF_COOKIE_SECURE = _env_bool("CSRF_COOKIE_SECURE", "true" if _HTTPS else "false")
+CSRF_COOKIE_SAMESITE = os.environ.get("CSRF_COOKIE_SAMESITE", "Lax")
+SESSION_COOKIE_SAMESITE = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
+SESSION_COOKIE_HTTPONLY = True
+
+if _env_bool("SECURE_HSTS", "true" if _HTTPS else "false"):
+    SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+# Limit request bodies (the pantry scanner accepts uploads; don't let them be huge).
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get("DATA_UPLOAD_MAX_MEMORY_SIZE", str(12 * 1024 * 1024)))
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get("FILE_UPLOAD_MAX_MEMORY_SIZE", str(6 * 1024 * 1024)))
+
 
 
 # Application definition
@@ -196,11 +238,17 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
 
-SESSION_COOKIE_SECURE = False  # True only if using HTTPS
-CSRF_COOKIE_SECURE = False     # True only if using HTTPS
-
 # CORS & CSRF Settings for React Frontend
-CORS_ALLOW_ALL_ORIGINS = True
+# Dev default: every localhost origin. Production: set CORS_ALLOWED_ORIGINS.
+CORS_ALLOW_ALL_ORIGINS = DEBUG or _env_bool("CORS_ALLOW_ALL", "false")
+CORS_ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173",
+    ).split(",")
+    if o.strip()
+]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -235,14 +283,42 @@ LMSTUDIO_URL = os.getenv("LMSTUDIO_URL", "http://host.docker.internal:1234/v1/ch
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.2-3b-instruct")
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.BasicAuthentication',
-    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        ['rest_framework.authentication.SessionAuthentication']
+        + (['rest_framework.authentication.BasicAuthentication'] if DEBUG else [])
+    ),
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
+    # --- Rate limiting -------------------------------------------------
+    # Endpoints declare their bucket(s) via GetFood.throttles.scoped(...);
+    # unscoped endpoints (health/stats probes) are not throttled.
+    'DEFAULT_THROTTLE_CLASSES': [],
+    'DEFAULT_THROTTLE_RATES': {},
+    'EXCEPTION_HANDLER': 'GetFood.throttles.wtc_exception_handler',
+    'UNAUTHENTICATED_USER': 'django.contrib.auth.models.AnonymousUser',
 }
+
+# Production API is JSON-only (no browsable HTML forms/CSRF surface).
+if not DEBUG:
+    REST_FRAMEWORK.setdefault('DEFAULT_RENDERER_CLASSES', [
+        'rest_framework.renderers.JSONRenderer',
+    ])
+
+# Runtime overridable rate table (see GetFood/rate_limits.load_rates).
+# The test-suite keeps the throttle pipeline active but with effectively
+# unlimited buckets, so 429 paths can be tested explicitly with
+# override_settings while ordinary tests never trip a limit.
+from GetFood.rate_limits import DEFAULT_RATES, load_rates
+
+if _IS_TESTING:
+    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
+        scope: "1000000/min" for scope in DEFAULT_RATES
+    }
+elif not _env_bool("THROTTLING_ENABLED", "true"):
+    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {}
+else:
+    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = load_rates()
 
 # Celery: default to localhost for bare-metal dev; Docker sets redis://redis:6379/0 via .env
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")

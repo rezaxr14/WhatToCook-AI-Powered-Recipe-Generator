@@ -39,7 +39,7 @@ const AppRoutes: React.FC = () => {
         isAnyModalOpen ? 'blur-[3px] brightness-90 transition-all duration-300' : ''
       }`}>
       <Navbar />
-      {/* The landing journey is a full-bleed cinematic experience — no page gutter, no global footer. */}
+      {/* The landing journey is a full-bleed cinematic experience — no page gutter (nav & footer stay for app-wide actions/language). */}
       <main className={isLanding ? 'flex-1 w-full' : 'flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8'}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
@@ -55,7 +55,7 @@ const AppRoutes: React.FC = () => {
           <Route path="*" element={<LandingPage />} />
         </Routes>
       </main>
-      {!isLanding && <Footer />}
+      <Footer />
       <PWAInstallBanner />
       <QuickActionsWidget />
     </div>

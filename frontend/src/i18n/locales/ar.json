@@ -220,5 +220,21 @@
     "ctaSub": "أخبر WhatToCook بما في مطبخك.",
     "ctaStart": "ابدأ الطبخ",
     "loading": "جارٍ تجهيز مطبخك..."
+  },
+  "tour": {
+    "watch": "شاهد الفيلم",
+    "exit": "خروج",
+    "play": "تشغيل",
+    "pause": "إيقاف مؤقت",
+    "replay": "إعادة التشغيل",
+    "hintPause": "مسافة للإيقاف",
+    "hintResume": "مسافة للمتابعة",
+    "stopHero": "الوصول",
+    "stopFridge": "افتح الثلاجة",
+    "stopAI": "صحوة الذكاء الاصطناعي",
+    "stopGalaxy": "المجرة",
+    "stopCook": "الطهي",
+    "stopDish": "الطبق",
+    "stopFinale": "العودة للوطن"
   }
 }
