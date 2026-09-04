@@ -266,7 +266,7 @@ export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => 
       <Starback />
       <ShootingStar />
       <EmberField position={[0, 0.9, -0.1]} window={[0.93, 0.95, 1.01, 1.02]} count={10} spread={1.1} rise={0.8} />
-      <DustField count={mobile ? 70 : 190} />
+      <DustField count={mobile ? 70 : 190} hide={[0.1, 0.16]} show={[0.42, 0.5]} />
       {fx && !reduced && <CinematicFX />}
     </Canvas>
   );

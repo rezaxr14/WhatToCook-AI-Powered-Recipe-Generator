@@ -80,8 +80,17 @@ export const SteamEmitter: React.FC<SteamEmitterProps> = ({
   );
 };
 
-/** Ambient dust motes drifting through the light for volumetric depth. */
-export const DustField: React.FC<{ count?: number }> = ({ count = 160 }) => {
+/** Ambient dust motes drifting through the light for volumetric depth.
+ *  Optional hide/show progress windows: dust is lovely in wide shots but in
+ *  bright close-ups (the fridge interior) drifting specks read as wall
+ *  flicker, so the scene fades dust out before those shots. */
+export const DustField: React.FC<{
+  count?: number;
+  /** fade the whole field out over [a,b] */
+  hide?: [number, number];
+  /** fade it back in over [a,b] */
+  show?: [number, number];
+}> = ({ count = 160, hide, show }) => {
   const ref = useRef<THREE.Points>(null);
   const { positions, drift } = useMemo(() => {
     const positions = new Float32Array(count * 3);
@@ -99,6 +108,7 @@ export const DustField: React.FC<{ count?: number }> = ({ count = 160 }) => {
     const pts = ref.current;
     if (!pts) return;
     const t = clock.elapsedTime;
+    const p = journey.progress;
     const pos = pts.geometry.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < count; i++) {
       pos.setY(i, 0.4 + Math.abs(Math.sin(t * 0.08 + drift[i])) * 3.6);
@@ -106,7 +116,11 @@ export const DustField: React.FC<{ count?: number }> = ({ count = 160 }) => {
     }
     pos.needsUpdate = true;
     const mat = pts.material as THREE.PointsMaterial;
-    mat.opacity = 0.16 + seg(journey.progress, 0.86, 0.95) * 0.1;
+    let presence = 0.16 + seg(p, 0.86, 0.95) * 0.1;
+    if (hide) presence *= 1 - seg(p, hide[0], hide[1]);
+    if (show) presence *= seg(p, show[0], show[1]);
+    mat.opacity = presence;
+    pts.visible = presence > 0.004;
   });
 
   return (

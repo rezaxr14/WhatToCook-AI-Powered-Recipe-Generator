@@ -259,7 +259,8 @@ const KitchenRoom: React.FC = () => {
         ))}
       </group>
 
-      {/* Pot with gentle steam on the stove area */}
+      {/* Pot with gentle steam on the stove area — fades away before the
+          fridge close-up so no moving wisps cross the bright interior */}
       <mesh position={[0.4, 1.12, -3.25]} castShadow>
         <cylinderGeometry args={[0.3, 0.27, 0.26, 28]} />
         <meshPhysicalMaterial color="#26262c" roughness={0.35} metalness={0.75} />
@@ -268,7 +269,7 @@ const KitchenRoom: React.FC = () => {
         <torusGeometry args={[0.28, 0.018, 10, 32]} />
         <meshStandardMaterial color="#3a3a42" metalness={0.8} roughness={0.3} />
       </mesh>
-      <SteamEmitter position={[0.4, 1.35, -3.25]} window={[0, 0.02, 0.28, 0.36]} count={9} rise={1.1} />
+      <SteamEmitter position={[0.4, 1.35, -3.25]} window={[0, 0.02, 0.2, 0.26]} count={9} rise={1.1} />
 
       {/* Hanging pendant lights above the counter */}
       {[-1.6, 0.2].map((x, i) => (
