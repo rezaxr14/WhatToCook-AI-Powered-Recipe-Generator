@@ -208,11 +208,11 @@ const CHEESE_GEO = new THREE.ExtrudeGeometry(CHEESE_SHAPE, {
 CHEESE_GEO.rotateX(-Math.PI / 2);
 
 const CHEESE_HOLES: { p: [number, number, number]; r: number }[] = [
-  { p: [0.30, 0.21, -0.16], r: 0.085 },
-  { p: [0.44, -0.21, -0.26], r: 0.07 },
-  { p: [0.22, 0.21, -0.34], r: 0.06 },
-  { p: [0.50, -0.21, -0.10], r: 0.09 },
-  { p: [0.34, -0.21, -0.40], r: 0.055 },
+  { p: [0.30, 0.40, -0.16], r: 0.065 },
+  { p: [0.22, 0.40, -0.32], r: 0.055 },
+  { p: [0.44, 0.24, -0.26], r: 0.060 },
+  { p: [0.48, 0.26, -0.12], r: 0.065 },
+  { p: [0.34, 0.28, -0.38], r: 0.050 },
 ];
 
 export const CheeseWedge: React.FC<G> = (props) => (
@@ -221,7 +221,7 @@ export const CheeseWedge: React.FC<G> = (props) => (
       <meshPhysicalMaterial color="#f0b93f" roughness={0.5} clearcoat={0.25} clearcoatRoughness={0.5} />
     </mesh>
     {CHEESE_HOLES.map((h, i) => (
-      <mesh key={i} position={[h.p[0], h.p[1] + 0.21, h.p[2]]}>
+      <mesh key={i} position={h.p}>
         <sphereGeometry args={[h.r, 14, 10]} />
         <meshStandardMaterial color="#cf9526" roughness={0.65} />
       </mesh>

@@ -581,25 +581,125 @@ export const LandingPage: React.FC = () => {
       </Chapter>
 
       {/* ---------- Chapter III — AI vision ---------- */}
-      <Chapter k="ai" register={registerChapter} className="items-center justify-end">
-        <div className="max-w-md px-8 text-right sm:px-20">
+      <Chapter k="ai" register={registerChapter} className="items-center justify-center sm:justify-end">
+        <div className="max-w-md px-6 text-center sm:text-right sm:pr-24 lg:pr-32">
           <div className="text-[10px] font-black tracking-[0.4em] text-amber-300/90" style={DISPLAY_FONT}>
             02 — AI
           </div>
           <h2 className="mt-3 text-2xl font-black leading-tight tracking-tight text-stone-50 sm:text-4xl" style={DISPLAY_FONT}>
             {t('story.aiTitle')}
           </h2>
-          <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-stone-300/90">{t('story.aiSub')}</p>
+          <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-stone-300/90 mx-auto sm:ml-auto sm:mr-0">{t('story.aiSub')}</p>
         </div>
       </Chapter>
 
       {/* ---------- Chapter IV — Recipe galaxy ---------- */}
-      <Chapter k="galaxy" register={registerChapter} className="items-start justify-center pt-24">
-        <div className="max-w-xl px-8 text-center">
-          <h2 className="text-2xl font-black leading-tight tracking-tight text-stone-50 sm:text-4xl" style={DISPLAY_FONT}>
-            {t('story.galaxyTitle')}
-          </h2>
-          <p className="mx-auto mt-3 max-w-md text-sm font-medium text-stone-300/90">{t('story.galaxySub')}</p>
+      <Chapter k="galaxy" register={registerChapter} className="items-start justify-center pt-24 sm:pt-28">
+        {/* Intro Top Header */}
+        <div className="max-w-xl px-4 text-center">
+          <div className="mx-auto rounded-3xl border border-amber-200/20 bg-stone-950/75 p-4 sm:p-6 backdrop-blur-xl shadow-[0_16px_50px_rgba(0,0,0,0.6)]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 text-[10px] font-black tracking-widest text-amber-300 uppercase" style={DISPLAY_FONT}>
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+              03 — AI Recipe Galaxy
+            </div>
+            <h2 className="mt-2 text-xl sm:text-3xl md:text-4xl font-black leading-tight tracking-tight text-stone-50" style={DISPLAY_FONT}>
+              {t('story.galaxyTitle')}
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-xs sm:text-sm font-medium text-stone-300/90 leading-relaxed">
+              {t('story.galaxySub')}
+            </p>
+          </div>
+        </div>
+
+        {/* Mobile Spotlight Card (< md): Clean single card centered above bottom buttons */}
+        <div className="md:hidden mt-5 w-full max-w-xs px-2 pointer-events-auto">
+          <div className="rounded-3xl border border-amber-300/30 bg-stone-950/90 p-4 backdrop-blur-xl shadow-2xl">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/15 border border-emerald-400/30 px-2.5 py-0.5 text-[9px] font-black tracking-widest text-emerald-300 uppercase">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                96% {t('story.match')}
+              </span>
+              <span className="text-[10px] font-bold text-amber-200">⏱ {t('story.cardTime')}</span>
+            </div>
+            <div className="mt-2 text-sm font-black text-white" style={DISPLAY_FONT}>
+              {t('story.cardName')}
+            </div>
+            <div className="mt-1 text-[10px] text-stone-400">
+              {t('story.uses', { n: 6 })} · <span className="text-emerald-400 font-bold">{t('story.cardLevel')}</span>
+            </div>
+            <div className="mt-3 pt-2 border-t border-stone-800/80 flex items-center justify-between text-[10px] text-stone-400">
+              <span>🍝 Tomato & Penne</span>
+              <span className="text-amber-300 font-bold">+2 More Dishes</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop 3 Red Circles (hidden md:block): Positioned in the 3 circled zones, well away from edges & rail */}
+
+        {/* 1. Left Circle Card (mid-left) */}
+        <div className="hidden md:block absolute left-8 lg:left-14 top-[48%] -translate-y-1/2 w-60 lg:w-68 pointer-events-auto">
+          <div className="rounded-3xl border border-sky-400/30 bg-stone-950/80 p-4 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] hover:border-sky-400/60 transition-all duration-300 hover:scale-[1.03]">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-sky-400/15 px-2.5 py-0.5 text-[9px] font-black tracking-widest text-sky-300 uppercase">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-400 animate-ping" />
+                85% {t('story.match')}
+              </span>
+              <span className="text-[10px] font-bold text-stone-300">⏱ 10 min</span>
+            </div>
+            <div className="mt-2 text-sm font-black text-stone-100" style={DISPLAY_FONT}>
+              {t('story.card3Name')}
+            </div>
+            <div className="mt-1 text-[10px] font-semibold text-stone-400">
+              {t('story.uses', { n: 4 })} · <span className="text-sky-300 font-bold">Fresh bite</span>
+            </div>
+            <div className="mt-2 pt-2 border-t border-stone-800/80 text-[10px] text-stone-400">
+              🍅 Mozzarella, Basil, Tomato
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Bottom-Center Circle Card (lower middle) */}
+        <div className="hidden md:block absolute left-1/2 -translate-x-1/2 bottom-20 lg:bottom-24 w-60 lg:w-68 pointer-events-auto">
+          <div className="rounded-3xl border border-amber-400/30 bg-stone-950/80 p-4 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] hover:border-amber-400/60 transition-all duration-300 hover:scale-[1.03]">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/15 px-2.5 py-0.5 text-[9px] font-black tracking-widest text-amber-300 uppercase">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
+                91% {t('story.match')}
+              </span>
+              <span className="text-[10px] font-bold text-stone-300">⏱ 15 min</span>
+            </div>
+            <div className="mt-2 text-sm font-black text-stone-100" style={DISPLAY_FONT}>
+              {t('story.card2Name')}
+            </div>
+            <div className="mt-1 text-[10px] font-semibold text-stone-400">
+              {t('story.uses', { n: 5 })} · <span className="text-amber-300 font-bold">Skillet</span>
+            </div>
+            <div className="mt-2 pt-2 border-t border-stone-800/80 text-[10px] text-stone-400">
+              🍳 Farm Eggs, Bell Pepper, Tomato
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Right Circle Card (lower-right, safely inset from right rail & buttons!) */}
+        <div className="hidden md:block absolute right-16 lg:right-24 bottom-22 lg:bottom-26 w-60 lg:w-68 pointer-events-auto">
+          <div className="rounded-3xl border border-emerald-400/30 bg-stone-950/80 p-4 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] hover:border-emerald-400/60 transition-all duration-300 hover:scale-[1.03]">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/15 px-2.5 py-0.5 text-[9px] font-black tracking-widest text-emerald-300 uppercase">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                96% {t('story.match')}
+              </span>
+              <span className="text-[10px] font-bold text-stone-300">⏱ {t('story.cardTime')}</span>
+            </div>
+            <div className="mt-2 text-sm font-black text-stone-100" style={DISPLAY_FONT}>
+              {t('story.cardName')}
+            </div>
+            <div className="mt-1 text-[10px] font-semibold text-stone-400">
+              {t('story.uses', { n: 6 })} · <span className="text-emerald-300 font-bold">{t('story.cardLevel')}</span>
+            </div>
+            <div className="mt-2 pt-2 border-t border-stone-800/80 text-[10px] text-stone-400">
+              🍝 Penne, Garlic, Vine Tomatoes
+            </div>
+          </div>
         </div>
       </Chapter>
 
@@ -730,7 +830,7 @@ export const LandingPage: React.FC = () => {
       {canTour && (
         <>
           {/* Chapter rail (desktop) */}
-          <div className="fixed right-5 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-center gap-3 md:flex">
+          <div className="fixed right-3 sm:right-4 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-center gap-1 rounded-full border border-stone-800/70 bg-stone-950/70 p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.6)] backdrop-blur-xl md:flex">
             {TOUR_STOPS.map((stop, i) => {
               const active = tourStopIdx === i;
               return (
@@ -739,16 +839,20 @@ export const LandingPage: React.FC = () => {
                   onClick={() => seekTourStop(i)}
                   data-cursor="CHAPTER"
                   title={t(stop.key)}
-                  className="group relative flex items-center"
+                  aria-label={t(stop.key)}
+                  className="group relative flex h-8 w-8 items-center justify-center rounded-full transition-colors cursor-pointer hover:bg-white/10"
                 >
                   <span
                     className={`block rounded-full transition-all duration-300 ${
                       active
-                        ? 'h-2.5 w-2.5 bg-amber-300 shadow-[0_0_12px_rgba(252,211,77,0.9)]'
-                        : 'h-1.5 w-1.5 bg-stone-600 group-hover:bg-amber-200/70'
+                        ? 'h-3.5 w-3.5 bg-amber-400 ring-4 ring-amber-400/25 shadow-[0_0_14px_rgba(251,191,36,0.95)]'
+                        : 'h-2 w-2 bg-stone-500/80 group-hover:scale-125 group-hover:bg-amber-200'
                     }`}
                   />
-                  <span className="pointer-events-none absolute right-4 whitespace-nowrap rounded-full border border-stone-100/10 bg-stone-950/80 px-3 py-1 text-[10px] font-bold tracking-wide text-stone-300 opacity-0 backdrop-blur-md transition-opacity duration-200 group-hover:opacity-100">
+                  <span
+                    className="pointer-events-none absolute right-11 whitespace-nowrap rounded-full border border-stone-200/20 bg-stone-950/90 px-3.5 py-1.5 text-xs font-black tracking-wide text-amber-100 opacity-0 shadow-2xl backdrop-blur-md transition-all duration-200 group-hover:opacity-100 group-hover:-translate-x-1"
+                    style={DISPLAY_FONT}
+                  >
                     {t(stop.key)}
                   </span>
                 </button>

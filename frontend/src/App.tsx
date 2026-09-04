@@ -56,7 +56,7 @@ const AppRoutes: React.FC = () => {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
-      <Footer />
+      {!isLanding && <Footer />}
       <PWAInstallBanner />
       <QuickActionsWidget />
     </div>

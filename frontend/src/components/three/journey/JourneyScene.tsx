@@ -206,7 +206,30 @@ export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => 
           pmrem.dispose();
           envRt.dispose();
         }
-        setTimeout(onReady, 600);
+
+        // Pre-compile all scene shaders & geometries on the client GPU
+        // so that scrolling through later chapters has zero shader compilation frame drops.
+        try {
+          const hiddenObjects: THREE.Object3D[] = [];
+          scene.traverse((obj) => {
+            if (!obj.visible) {
+              hiddenObjects.push(obj);
+              obj.visible = true;
+            }
+          });
+
+          // Compile all scene programs ahead of time
+          gl.compile(scene, camera);
+
+          // Restore initial visibility states
+          for (const obj of hiddenObjects) {
+            obj.visible = false;
+          }
+        } catch (err) {
+          console.warn('Three.js pre-compile warning:', err);
+        }
+
+        setTimeout(onReady, 650);
       }}
       style={{ position: 'absolute', inset: 0, background: '#070503' }}
       aria-hidden

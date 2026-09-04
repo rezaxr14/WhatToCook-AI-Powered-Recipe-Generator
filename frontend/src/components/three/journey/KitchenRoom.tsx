@@ -386,9 +386,9 @@ const KitchenRoom: React.FC = () => {
         <Mushroom position={[0.40, 1.711, 0.02]} scale={0.46} />
 
         {/* Shelf 3 (Top, y = 2.50): Cheese, Farm Eggs, Milk Carton */}
-        <CheeseWedge position={[-0.52, 2.511, 0.1]} rotation={[0, 0.35, 0]} scale={0.52} />
-        <Egg position={[-0.28, 2.511, 0.15]} scale={0.45} />
-        <Egg position={[-0.08, 2.511, 0.22]} scale={0.42} />
+        <CheeseWedge position={[-0.40, 2.511, 0.08]} rotation={[0, 0.15, 0]} scale={0.42} />
+        <Egg position={[-0.16, 2.511, 0.16]} scale={0.45} />
+        <Egg position={[0.08, 2.511, 0.20]} scale={0.42} />
         <MilkCarton position={[0.42, 2.511, 0.0]} rotation={[0, 0.35, 0]} scale={0.72} />
 
         {/* Door — hinged on the left edge, with playful magnet notes */}

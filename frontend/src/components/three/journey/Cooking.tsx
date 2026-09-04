@@ -9,6 +9,30 @@ import { SteamEmitter, EmberField } from './Effects';
 const SAUCE_BASE = new THREE.Color('#e2603f');
 const SAUCE_DARK = new THREE.Color('#a83520');
 
+// Hoisted dish garnish geometries and materials to avoid allocations and reduce draw overhead
+const PARMESAN_GEO = new THREE.BoxGeometry(0.03, 0.008, 0.03);
+const PARMESAN_MAT = new THREE.MeshStandardMaterial({ color: '#f7f2e6', roughness: 0.45 });
+
+const BASIL_GARNISH_GEO = new THREE.SphereGeometry(1, 8, 6);
+const BASIL_GARNISH_MAT = new THREE.MeshStandardMaterial({ color: '#2e6b34', roughness: 0.35 });
+
+const PARMESAN_ITEMS = Array.from({ length: 26 }, (_, i) => {
+  const a = i * 2.39996;
+  const r = 0.12 + (i % 5) * 0.09;
+  return {
+    position: [Math.cos(a) * r, 0.26 + (i % 3) * 0.02, Math.sin(a) * r] as [number, number, number],
+    rotation: [i, i * 0.7, 0] as [number, number, number],
+  };
+});
+
+const BASIL_GARNISH_ITEMS = Array.from({ length: 6 }, (_, i) => {
+  const a = (i / 6) * Math.PI * 2 + 0.5;
+  return {
+    position: [Math.cos(a) * 0.26, 0.31, Math.sin(a) * 0.26] as [number, number, number],
+    rotation: [0, -a, 0.5] as [number, number, number],
+  };
+});
+
 /**
  * Chapter V–VI: the magic moment. Ingredients drop into the pan, the flame
  * roars, the sauce develops — then the pan gives way to the finished dish,
@@ -223,27 +247,14 @@ export const Cooking: React.FC = () => {
         ))}
 
         {/* Fresh basil + parmesan finish */}
-        {Array.from({ length: 6 }, (_, i) => {
-          const a = (i / 6) * Math.PI * 2 + 0.5;
-          return (
-            <group key={i} position={[Math.cos(a) * 0.26, 0.31, Math.sin(a) * 0.26]} rotation={[0, -a, 0.5]}>
-              <mesh scale={[0.075, 0.012, 0.05]}>
-                <sphereGeometry args={[1, 8, 6]} />
-                <meshPhysicalMaterial color="#2e6b34" roughness={0.35} sheen={0.6} sheenColor="#9adca0" />
-              </mesh>
-            </group>
-          );
-        })}
-        {Array.from({ length: 26 }, (_, i) => {
-          const a = i * 2.39996;
-          const r = 0.12 + (i % 5) * 0.09;
-          return (
-            <mesh key={i} position={[Math.cos(a) * r, 0.26 + (i % 3) * 0.02, Math.sin(a) * r]} rotation={[i, i * 0.7, 0]}>
-              <boxGeometry args={[0.03, 0.008, 0.03]} />
-              <meshPhysicalMaterial color="#f7f2e6" roughness={0.4} />
-            </mesh>
-          );
-        })}
+        {BASIL_GARNISH_ITEMS.map((item, i) => (
+          <group key={i} position={item.position} rotation={item.rotation}>
+            <mesh scale={[0.075, 0.012, 0.05]} geometry={BASIL_GARNISH_GEO} material={BASIL_GARNISH_MAT} />
+          </group>
+        ))}
+        {PARMESAN_ITEMS.map((item, i) => (
+          <mesh key={i} position={item.position} rotation={item.rotation} geometry={PARMESAN_GEO} material={PARMESAN_MAT} />
+        ))}
 
         <SteamEmitter position={[0, 0.45, 0]} window={[0.78, 0.81, 0.97, 1.01]} count={12} spread={0.55} rise={1.7} />
       </group>
