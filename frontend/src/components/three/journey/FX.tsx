@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { EffectComposer, Bloom, ChromaticAberration, Vignette, ToneMapping } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, Vignette, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import * as THREE from 'three';
 import { journey, seg, win, isMobileDevice } from './state';
@@ -25,8 +25,11 @@ import { journey, seg, win, isMobileDevice } from './state';
  */
 export const CinematicFX: React.FC = () => {
   const bloom = useRef<any>(null);
-  const chroma = useRef<any>(null);
   const mobile = useMemo(() => isMobileDevice(), []);
+  // Post-processing renders at reduced internal resolution (half the pixels
+  // on mobile, ~60% on desktop): bloom is a soft effect, so this is visually
+  // nearly identical but much cheaper — the single biggest FPS win here.
+  const resScale = mobile ? 0.5 : 0.62;
   const [degraded, setDegraded] = useState(false);
   // ?fx=full disables the adaptive governor (used for visual QA of the full
   // post stack, e.g. capturing what a real GPU shows).
@@ -89,24 +92,12 @@ export const CinematicFX: React.FC = () => {
       bloom.current.smoothing = 0.36;
     }
 
-    // Aberration swells only during transitions; near-silent inside the
-    // bright chapters (edge shimmer there reads as instability).
-    const xfade = Math.max(
-      win(p, 0.055, 0.09, 0.12, 0.16),
-      win(p, 0.3, 0.335, 0.42, 0.46),
-      win(p, 0.55, 0.585, 0.64, 0.68),
-      win(p, 0.84, 0.88, 0.93, 0.97)
-    );
-    const swell = 0.00045 + xfade * 0.00055;
-    if (chroma.current) {
-      chroma.current.offset.set(swell * (mobile ? 0.5 : 1), swell * 0.3);
-    }
+    // (chromatic aberration pass removed — its cost isn't worth the effect)
   });
 
   return (
-    <EffectComposer multisampling={0} enableNormalPass={false}>
+    <EffectComposer multisampling={0} enableNormalPass={false} resolutionScale={resScale}>
       <Bloom ref={bloom} mipmapBlur intensity={0.45} luminanceThreshold={0.3} luminanceSmoothing={0.34} radius={0.78} />
-      <ChromaticAberration ref={chroma} offset={new THREE.Vector2(0.0006, 0.0002)} radialModulation modulationOffset={0.35} />
       <Vignette eskil={false} offset={0.22} darkness={0.82} />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
     </EffectComposer>

@@ -67,15 +67,41 @@ export const Cooking: React.FC = () => {
       sm.color.copy(SAUCE_BASE).lerp(SAUCE_DARK, s);
     }
 
-    // Ingredients dropping into the pan
+    // Ingredients dropping into the pan — original fall choreography, but
+    // they now LAND in the pan: each piece eases down from above the frame
+    // onto the sauce (≈0.32 station-local) instead of hovering at 1.15, and
+    // glides to its own spot on a small ring so nothing piles up.
     if (drops.current) {
       const drop = seg(p, 0.585, 0.645);
       drops.current.visible = drop > 0.001 && p < 0.73;
+      const REST_Y = [0.285, 0.29, 0.295, 0.325, 0.325]; // tomato×3 → garlic×2 (upright base)
+      // landing spots on a ring r=0.4 — nearest neighbours are 0.47 apart,
+      // comfortably wider than any piece, so nothing touches at rest
+      const SPREAD: Array<[number, number]> = [
+        [0.4, 0],
+        [0.124, 0.38],
+        [-0.324, 0.235],
+        [-0.324, -0.235],
+        [0.124, -0.38],
+      ];
       drops.current.children.forEach((child, i) => {
+        // remember the authored start position once (before first mutation)
+        if (child.userData.x0 === undefined) {
+          child.userData.x0 = child.position.x;
+          child.userData.z0 = child.position.z;
+        }
         const local = THREE.MathUtils.clamp(drop * 1.6 - i * 0.09, 0, 1);
-        child.position.y = 2.3 - local * 1.15;
-        child.rotation.x = local * 5 + i;
-        child.rotation.z = local * 3.5;
+        const ease = 1 - Math.pow(1 - local, 2.4);
+        child.position.y = 2.6 - ease * (2.6 - REST_Y[i]);
+        // glide sideways onto the resting spot only in the final stretch
+        const land = THREE.MathUtils.smoothstep(local, 0.55, 0.95);
+        const x0 = child.userData.x0 ?? 0;
+        const z0 = child.userData.z0 ?? 0;
+        child.position.x = x0 + (SPREAD[i][0] - x0) * land;
+        child.position.z = z0 + (SPREAD[i][1] - z0) * land;
+        // tumble while airborne, settle calm
+        child.rotation.x = (local * 5 + i) * (1 - land);
+        child.rotation.z = (local * 3.5) * (1 - land);
       });
     }
 
@@ -151,8 +177,8 @@ export const Cooking: React.FC = () => {
           <TomatoChunk position={[-0.25, 2.3, 0.05]} />
           <TomatoChunk position={[0.2, 2.3, -0.12]} />
           <TomatoChunk position={[0.02, 2.3, 0.18]} />
-          <Garlic position={[-0.05, 2.3, -0.05]} scale={0.7} />
-          <Garlic position={[0.32, 2.3, 0.1]} scale={0.6} />
+          <Garlic pose="up" position={[-0.05, 2.3, -0.05]} scale={0.7} />
+          <Garlic pose="up" position={[0.32, 2.3, 0.1]} scale={0.6} />
         </group>
 
         <SteamEmitter position={[0, 0.5, 0]} window={[0.635, 0.66, 0.71, 0.78]} count={10} spread={0.5} rise={1.4} />

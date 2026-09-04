@@ -182,14 +182,14 @@ export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => 
 
   return (
     <Canvas
-      dpr={mobile ? [1, 1.25] : [1, 1.5]}
+      dpr={mobile ? [1, 1.15] : [1, 1.35]}
       camera={{ position: [0, 1.6, 7.6], fov: mobile ? 58 : 44, near: 0.1, far: 80 }}
       gl={{
         antialias: !mobile,
         alpha: false,
         powerPreference: 'high-performance',
       }}
-      shadows="soft"
+      shadows={mobile ? "basic" : "soft"}
       onCreated={({ scene, camera, gl }) => {
         scene.fog = new THREE.FogExp2('#070503', 0.042);
         (window as unknown as Record<string, unknown>).__wtcScene = scene;
@@ -221,7 +221,7 @@ export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => 
       <Starback />
       <ShootingStar />
       <EmberField position={[0, 0.9, -0.1]} window={[0.93, 0.95, 1.01, 1.02]} count={10} spread={1.1} rise={0.8} />
-      <DustField count={mobile ? 70 : 190} hide={[0.1, 0.16]} show={[0.42, 0.5]} />
+      <DustField count={mobile ? 45 : 120} hide={[0.1, 0.16]} show={[0.42, 0.5]} />
       {fx && !reduced && <CinematicFX />}
     </Canvas>
   );

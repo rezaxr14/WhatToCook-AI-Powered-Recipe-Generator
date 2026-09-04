@@ -343,9 +343,11 @@ const KitchenRoom: React.FC = () => {
 
         {/* Fridge contents — the cast of chapter II (models are base-origin) */}
         <BasilPot position={[0.02, 0.8625, 0.02]} scale={0.95} />
-        <Garlic position={[-0.4, 0.8625, -0.1]} scale={0.85} />
-        <Onion position={[-0.1, 0.8625, -0.26]} scale={0.75} />
-        <BellPepper position={[0.42, 0.8625, 0.08]} scale={0.68} />
+        {/* Upright pose on shelves (flat pose is for countertops) — the
+            original repo composition, no overlaps between neighbours */}
+        <Garlic pose="up" position={[-0.4, 0.8625, -0.1]} scale={0.85} />
+        <Onion pose="up" position={[-0.1, 0.8625, -0.26]} scale={0.75} />
+        <BellPepper position={[0.42, 0.8625, 0.08]} scale={0.85} />
         <Tomato position={[-0.42, 1.7125, 0.06]} scale={0.65} />
         <Tomato position={[-0.14, 1.7125, -0.22]} scale={0.55} />
         <Mushroom position={[0.38, 1.7125, 0.0]} scale={0.78} />
