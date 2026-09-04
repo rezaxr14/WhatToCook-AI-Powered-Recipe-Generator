@@ -14,7 +14,7 @@ env/
 venv/
 .venv/
 db.sqlite3
-media/
+media/uploads/
 *.log
 .DS_Store
 .gemini
