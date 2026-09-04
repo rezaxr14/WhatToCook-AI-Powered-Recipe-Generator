@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { journey, seg, win } from './state';
-import { TomatoChunk, Garlic, BasilPot } from './Ingredients';
+import { TomatoChunk, Penne, Garlic, BasilPot } from './Ingredients';
 import { SteamEmitter, EmberField } from './Effects';
 
 // Sauce tint endpoints — hoisted so the per-frame update allocates nothing.
@@ -67,23 +67,23 @@ export const Cooking: React.FC = () => {
       sm.color.copy(SAUCE_BASE).lerp(SAUCE_DARK, s);
     }
 
-    // Ingredients dropping into the pan — original fall choreography, but
-    // they now LAND in the pan: each piece eases down from above the frame
-    // onto the sauce (≈0.32 station-local) instead of hovering at 1.15, and
-    // glides to its own spot on a small ring so nothing piles up.
+    // Ingredients dropping into the pan: tomato wedges, raw penne tubes, and garlic
+    // ease down from above the frame onto the developing sauce (≈0.30 station-local)
+    // and glide onto their own spots on a ring so nothing touches or piles up.
     if (drops.current) {
       const drop = seg(p, 0.585, 0.645);
       drops.current.visible = drop > 0.001 && p < 0.73;
-      const REST_Y = [0.285, 0.29, 0.295, 0.325, 0.325]; // tomato×3 → garlic×2 (upright base)
-      // landing spots on a ring r=0.4 — nearest neighbours are 0.47 apart,
-      // comfortably wider than any piece, so nothing touches at rest
+      // rest heights: wedge chunks sit on sauce (0.29), penne tubes (0.345 - radius 0.055 = 0.29),
+      // garlic bulb base (0.31)
+      const REST_Y = [0.29, 0.345, 0.31, 0.345, 0.29];
       const SPREAD: Array<[number, number]> = [
-        [0.4, 0],
-        [0.124, 0.38],
-        [-0.324, 0.235],
-        [-0.324, -0.235],
-        [0.124, -0.38],
+        [0.36, 0],
+        [0.11, 0.34],
+        [-0.29, 0.21],
+        [-0.29, -0.21],
+        [0.11, -0.34],
       ];
+      const YAW = [0.9, 2.4, -0.8, 0.6, 2.1];
       drops.current.children.forEach((child, i) => {
         // remember the authored start position once (before first mutation)
         if (child.userData.x0 === undefined) {
@@ -99,8 +99,9 @@ export const Cooking: React.FC = () => {
         const z0 = child.userData.z0 ?? 0;
         child.position.x = x0 + (SPREAD[i][0] - x0) * land;
         child.position.z = z0 + (SPREAD[i][1] - z0) * land;
-        // tumble while airborne, settle calm
+        // tumble while airborne, settle into calm resting pose
         child.rotation.x = (local * 5 + i) * (1 - land);
+        child.rotation.y = YAW[i] * land;
         child.rotation.z = (local * 3.5) * (1 - land);
       });
     }
@@ -172,13 +173,13 @@ export const Cooking: React.FC = () => {
         <pointLight ref={flameLight} position={[0, 0.35, 0.2]} intensity={0} distance={4.5} decay={1.7} color="#ff9a4a" />
         <EmberField position={[0, 0.45, 0]} window={[0.6, 0.625, 0.72, 0.775]} count={16} spread={0.75} rise={1.5} />
 
-        {/* Falling ingredients */}
+        {/* Falling ingredients: tomato wedge, penne, garlic, penne, tomato wedge */}
         <group ref={drops}>
           <TomatoChunk position={[-0.25, 2.3, 0.05]} />
-          <TomatoChunk position={[0.2, 2.3, -0.12]} />
-          <TomatoChunk position={[0.02, 2.3, 0.18]} />
+          <Penne position={[0.15, 2.3, 0.22]} scale={1.05} />
           <Garlic pose="up" position={[-0.05, 2.3, -0.05]} scale={0.7} />
-          <Garlic pose="up" position={[0.32, 2.3, 0.1]} scale={0.6} />
+          <Penne position={[-0.2, 2.3, -0.18]} scale={1.05} />
+          <TomatoChunk position={[0.2, 2.3, -0.12]} />
         </group>
 
         <SteamEmitter position={[0, 0.5, 0]} window={[0.635, 0.66, 0.71, 0.78]} count={10} spread={0.5} rise={1.4} />

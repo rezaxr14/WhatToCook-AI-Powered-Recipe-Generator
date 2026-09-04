@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -63,10 +64,9 @@ if not ALLOWED_HOSTS:
 # ---------------------------------------------------------------------------
 # Production security hardening (all tunable through the environment)
 # ---------------------------------------------------------------------------
-# When DEBUG=false we default every security switch to ON; set the matching
-# env var to "false" to override behind a TLS-terminating proxy that already
-# sets these headers itself.
-_HTTPS = not DEBUG or _env_bool("FORCE_HTTPS", "false")
+_IS_RUNSERVER = "runserver" in sys.argv
+
+_HTTPS = not DEBUG and not _IS_TESTING and not _IS_RUNSERVER and _env_bool("FORCE_HTTPS", "false")
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = os.environ.get("SECURE_REFERRER_POLICY", "strict-origin-when-cross-origin")
@@ -74,7 +74,7 @@ X_FRAME_OPTIONS = "DENY"
 
 # Only meaningful behind a TLS-terminating reverse proxy (nginx):
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-if _env_bool("SECURE_SSL_REDIRECT", "true" if _HTTPS else "false"):
+if not _IS_TESTING and not _IS_RUNSERVER and _env_bool("SECURE_SSL_REDIRECT", "false"):
     SECURE_SSL_REDIRECT = True
 
 SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", "true" if _HTTPS else "false")
@@ -158,14 +158,20 @@ except ImportError:
 _use_postgres_env = os.environ.get("USE_POSTGRES", "").strip().lower()
 _db_host = os.environ.get("DB_HOST", "").strip()
 
-if _use_postgres_env in ("0", "false", "no"):
-    # Explicit opt-out wins (e.g. running tests/bare-metal dev while .env targets Docker).
+if "test" in sys.argv:
+    # Tests use sqlite3 in-memory/isolated DB for fast, zero-dependency test execution.
     USE_POSTGRES = False
+elif _use_postgres_env in ("0", "false", "no"):
+    # Explicit opt-out wins (e.g. running bare-metal dev while .env targets Docker).
+    USE_POSTGRES = False
+elif _use_postgres_env in ("1", "true", "yes"):
+    USE_POSTGRES = HAS_POSTGRES_DRIVER
+elif bool(_db_host) and _db_host != "db":
+    # Custom host specified (e.g. localhost or remote host)
+    USE_POSTGRES = HAS_POSTGRES_DRIVER
 else:
-    USE_POSTGRES = (
-        _use_postgres_env in ("1", "true", "yes")
-        or bool(_db_host)
-    ) and HAS_POSTGRES_DRIVER
+    # Bare-metal local run where DB_HOST=db is set for Docker but not running in container network
+    USE_POSTGRES = False
 
 if USE_POSTGRES:
     DATABASES = {
@@ -329,22 +335,22 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
 # Cache backend: Redis when REDIS_URL is provided (Docker), local-memory otherwise.
-# This gives Redis a first-class job (hot-path caching) beyond the Celery broker role.
+# During automated tests or bare-metal host execution without Docker network, use LocMemCache.
 REDIS_URL = os.getenv("REDIS_URL", "").strip()
-if REDIS_URL.startswith("redis://"):
+if _IS_TESTING or not REDIS_URL.startswith("redis://") or (REDIS_URL.startswith("redis://redis:") and sys.platform == "win32"):
     CACHES = {
         "default": {
-            "BACKEND": "django.core.cache.backends.redis.RedisCache",
-            "LOCATION": REDIS_URL,
-            "KEY_PREFIX": "whattocook",
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "whattocook-local",
             "TIMEOUT": 300,
         }
     }
 else:
     CACHES = {
         "default": {
-            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-            "LOCATION": "whattocook-local",
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            "KEY_PREFIX": "whattocook",
             "TIMEOUT": 300,
         }
     }

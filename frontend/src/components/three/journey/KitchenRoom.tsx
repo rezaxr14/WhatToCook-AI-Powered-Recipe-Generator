@@ -37,6 +37,9 @@ const KitchenRoom: React.FC = () => {
   const room = useRef<THREE.Group>(null);
   const door = useRef<THREE.Group>(null);
   const doorYawRef = useRef(0); // smoothed door yaw (no stepped scroll jumps)
+  const fridgeLight = useRef<THREE.PointLight>(null);
+  const fridgeLightIntensityRef = useRef(0);
+  const cavityMaterial = useRef<THREE.MeshStandardMaterial>(null);
   const bulb1 = useRef<THREE.PointLight>(null);
   const bulb2 = useRef<THREE.PointLight>(null);
   const table = useRef<THREE.Group>(null);
@@ -127,6 +130,19 @@ const KitchenRoom: React.FC = () => {
     const doorYawT = -open * 1.95;
     doorYawRef.current += (doorYawT - doorYawRef.current) * ease;
     if (door.current) door.current.rotation.y = doorYawRef.current;
+
+    // Fridge interior light: gracefully illuminates as the door cracks open,
+    // and turns fully off when closed so zero light bleeds into the dark hero kitchen.
+    const openRatio = Math.min(1, Math.max(0, -doorYawRef.current / 0.85));
+    const targetLight = openRatio * 1.25;
+    fridgeLightIntensityRef.current += (targetLight - fridgeLightIntensityRef.current) * ease;
+    if (fridgeLight.current) {
+      fridgeLight.current.intensity = fridgeLightIntensityRef.current;
+      fridgeLight.current.visible = fridgeLightIntensityRef.current > 0.005;
+    }
+    if (cavityMaterial.current) {
+      cavityMaterial.current.emissiveIntensity = 0.02 + fridgeLightIntensityRef.current * 0.22;
+    }
 
     // Warm pendant pools of light — brighter once home again. Intentionally
     // ROCK-STEADY: any high-frequency intensity wobble reads as buzzing on
@@ -331,7 +347,7 @@ const KitchenRoom: React.FC = () => {
               the interior point light in a moving hot spot — the white
               "flicker" seen once the door opens. Rough matte paint washes
               evenly and stays below the bloom threshold. */}
-          <meshStandardMaterial color="#f0e8d9" emissive="#ffedc9" emissiveIntensity={0.42} roughness={0.95} metalness={0} side={THREE.BackSide} />
+          <meshStandardMaterial ref={cavityMaterial} color="#f0e8d9" emissive="#ffedc9" emissiveIntensity={0.02} roughness={0.95} metalness={0} side={THREE.BackSide} />
         </mesh>
         {/* Shelves */}
         {[0.85, 1.7, 2.5].map((y) => (
@@ -384,11 +400,8 @@ const KitchenRoom: React.FC = () => {
           </mesh>
         </group>
 
-        {/* Interior light — deliberately STATIC (fixed intensity, no ref, no
-            per-frame writes). The old light ramped 0→2.2 with the door, so
-            scroll jitter in the opening band strobed it on/off — a bright
-            white flashing on the walls. A constant light can never switch. */}
-        <pointLight position={[0, 1.8, 0.3]} intensity={0.85} distance={4.2} decay={1.8} color="#ffedc9" />
+        {/* Interior light — smooth door-driven warm wash, dark when shut */}
+        <pointLight ref={fridgeLight} position={[0, 1.8, 0.3]} intensity={0} distance={4.2} decay={1.8} color="#ffedc9" visible={false} />
       </group>
 
       {/* Scattered counter ingredients — the room feels used, alive */}

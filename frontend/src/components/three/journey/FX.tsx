@@ -84,20 +84,29 @@ export const CinematicFX: React.FC = () => {
     if (bloom.current) {
       // Degraded = framerate starving: keep the stack mounted but drop the
       // bloom to a whisper; it breathes back once frames recover.
-      bloom.current.intensity = degraded ? 0.1 : bloomI;
-      // High threshold: only genuinely hot emitters (bulbs, flame, cards)
-      // bloom. Broad lit surfaces like the fridge interior sit well below it,
-      // so they can never glow/pulse white.
-      bloom.current.threshold = 0.62 - aiGlow * 0.1;
-      bloom.current.smoothing = 0.36;
+      bloom.current.intensity = degraded ? 0.08 : bloomI;
+      // In postprocessing, luminance threshold and smoothing uniforms are on luminanceMaterial.
+      // Setting them directly configures the shader pass, ensuring non-emissive surfaces never bloom.
+      if (bloom.current.luminanceMaterial) {
+        bloom.current.luminanceMaterial.threshold = 0.65 - aiGlow * 0.1;
+        bloom.current.luminanceMaterial.smoothing = 0.28;
+      }
     }
 
     // (chromatic aberration pass removed — its cost isn't worth the effect)
   });
 
   return (
-    <EffectComposer multisampling={0} enableNormalPass={false} resolutionScale={resScale}>
-      <Bloom ref={bloom} mipmapBlur intensity={0.45} luminanceThreshold={0.3} luminanceSmoothing={0.34} radius={0.78} />
+    <EffectComposer multisampling={0} enableNormalPass={false}>
+      <Bloom
+        ref={bloom}
+        mipmapBlur
+        intensity={0.45}
+        luminanceThreshold={0.65}
+        luminanceSmoothing={0.28}
+        radius={0.78}
+        resolutionScale={resScale}
+      />
       <Vignette eskil={false} offset={0.22} darkness={0.82} />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
     </EffectComposer>
