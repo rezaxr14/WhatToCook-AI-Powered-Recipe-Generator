@@ -28,11 +28,18 @@ export const CinematicFX: React.FC = () => {
   const chroma = useRef<any>(null);
   const mobile = useMemo(() => isMobileDevice(), []);
   const [degraded, setDegraded] = useState(false);
+  // ?fx=full disables the adaptive governor (used for visual QA of the full
+  // post stack, e.g. capturing what a real GPU shows).
+  const fxFull = useMemo(
+    () => typeof window !== 'undefined' && window.location.search.includes('fx=full'),
+    []
+  );
   const emaRef = useRef(0);
   const heavyFrames = useRef(0);
   const lightFrames = useRef(0);
 
   useFrame((_, delta) => {
+    if (fxFull) return;
     const dt = Math.min(delta, 0.25);
     emaRef.current = emaRef.current * 0.94 + dt * 0.06;
     if (!degraded) {
@@ -64,16 +71,22 @@ export const CinematicFX: React.FC = () => {
     const finale = win(p, 0.88, 0.96, 1.001, 1.002);
     const hero = 1 - seg(p, 0, 0.12);
 
-    // Slow breathing — very subtle so bright interiors never visibly pulse
-    const pulse = 0.97 + Math.sin(t * 1.15) * 0.045;
-    const bloomI = 0.36 + aiGlow * 0.8 * pulse + galaxy * 0.22 + flame * 0.38 * pulse + finale * 0.3 + hero * 0.14;
+    // Bloom intensity is STEADY per chapter — no time-based breathing at
+    // all. Time-based pulsing is what makes bright walls (fridge interior)
+    // visibly throb white. Only the flame keeps its own fast flicker, which
+    // reads as fire, not as broken lighting.
+    const flameFlick = 1 + Math.sin(t * 19.3) * 0.09 * flame;
+    const bloomI = 0.36 + aiGlow * 0.55 + galaxy * 0.26 + flame * 0.32 * flameFlick + finale * 0.22 + hero * 0.13;
 
     if (bloom.current) {
       // Degraded = framerate starving: keep the stack mounted but drop the
       // bloom to a whisper; it breathes back once frames recover.
-      bloom.current.intensity = degraded ? 0.12 : bloomI;
-      bloom.current.threshold = 0.45 - aiGlow * 0.04;
-      bloom.current.smoothing = 0.34;
+      bloom.current.intensity = degraded ? 0.1 : bloomI;
+      // High threshold: only genuinely hot emitters (bulbs, flame, cards)
+      // bloom. Broad lit surfaces like the fridge interior sit well below it,
+      // so they can never glow/pulse white.
+      bloom.current.threshold = 0.62 - aiGlow * 0.1;
+      bloom.current.smoothing = 0.36;
     }
 
     // Aberration swells only during transitions; near-silent inside the

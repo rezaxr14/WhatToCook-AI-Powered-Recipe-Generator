@@ -155,6 +155,16 @@ export const Cooking: React.FC = () => {
     <>
       {/* ---- Cooking station ---- */}
       <group ref={station} scale={0.001}>
+        {/* Inner scale-up: the cooking vignette fills the frame and the
+            ingredients read clearly at camera distance. All rest heights and
+            ring slots live in this scaled space, so proportions are intact. */}
+        <group scale={1.22}>
+        {/* Island counter — the station stands on a warm wooden disc instead
+            of floating in a void, so the scene reads as a stovetop vignette */}
+        <mesh position={[0, -0.03, 0]} receiveShadow>
+          <cylinderGeometry args={[2.5, 2.65, 0.08, 56]} />
+          <meshPhysicalMaterial color="#2b2117" roughness={0.85} clearcoat={0.15} />
+        </mesh>
         {/* Stone slab cooktop */}
         <mesh position={[0, 0.06, 0]}>
           <boxGeometry args={[2.7, 0.12, 1.7]} />
@@ -212,6 +222,7 @@ export const Cooking: React.FC = () => {
 
         <SteamEmitter position={[0, 0.5, 0]} window={[0.635, 0.66, 0.71, 0.78]} count={10} spread={0.5} rise={1.4} />
         <BasilPot position={[-0.95, 0.2, 0.55]} scale={0.8} />
+        </group>
       </group>
 
       {/* ---- The finished dish ---- */}

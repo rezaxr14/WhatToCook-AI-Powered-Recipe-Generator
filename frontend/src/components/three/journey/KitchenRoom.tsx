@@ -133,7 +133,7 @@ const KitchenRoom: React.FC = () => {
     // Interior fridge light spills out with the door. Kept modest and wide
     // (no hot spot on the walls) and fully on well before the shelf close-up,
     // so the interior is rock-steady while the camera dwells on it.
-    const lightT = open * 2.0;
+    const lightT = open * 2.2;
     fridgeIRef.current += (lightT - fridgeIRef.current) * ease;
     if (fridgeLight.current) fridgeLight.current.intensity = fridgeIRef.current;
 
@@ -340,7 +340,7 @@ const KitchenRoom: React.FC = () => {
               the interior point light in a moving hot spot — the white
               "flicker" seen once the door opens. Rough matte paint washes
               evenly and stays below the bloom threshold. */}
-          <meshStandardMaterial color="#efe7d8" emissive="#ffedc9" emissiveIntensity={0.36} roughness={0.95} metalness={0} side={THREE.BackSide} />
+          <meshStandardMaterial color="#f0e8d9" emissive="#ffedc9" emissiveIntensity={0.12} roughness={0.95} metalness={0} side={THREE.BackSide} />
         </mesh>
         {/* Shelves */}
         {[0.85, 1.7, 2.5].map((y) => (
@@ -367,7 +367,7 @@ const KitchenRoom: React.FC = () => {
         <group ref={door} position={[-0.85, 1.75, 0.585]}>
           <mesh position={[0.85, 0, 0]} castShadow>
             <boxGeometry args={[1.68, 3.42, 0.09]} />
-            <meshPhysicalMaterial color="#525b64" roughness={0.35} metalness={0.3} clearcoat={0.6} clearcoatRoughness={0.3} />
+            <meshPhysicalMaterial color="#565f68" roughness={0.6} metalness={0.1} clearcoat={0.12} clearcoatRoughness={0.5} />
           </mesh>
           <mesh position={[1.56, 0.15, 0.09]} rotation={[0, 0, Math.PI / 2]}>
             <cylinderGeometry args={[0.022, 0.022, 0.7, 10]} />
