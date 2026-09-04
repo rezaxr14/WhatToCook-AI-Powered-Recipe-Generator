@@ -224,13 +224,13 @@ const KitchenRoom: React.FC = () => {
         <meshPhysicalMaterial color="#6b5235" roughness={0.4} metalness={0.5} />
       </mesh>
 
-      {/* Counter along the back */}
-      <mesh position={[-0.6, 0.45, -3.3]} receiveShadow>
-        <boxGeometry args={[6.6, 0.9, 1.25]} />
+      {/* Counter along the back — truncated to stop flush at X = 1.5 before the fridge wall at X = 1.55 */}
+      <mesh position={[-1.2, 0.45, -3.3]} receiveShadow>
+        <boxGeometry args={[5.4, 0.9, 1.25]} />
         <meshStandardMaterial color="#57422c" roughness={0.75} />
       </mesh>
-      <mesh position={[-0.6, 0.94, -3.3]} receiveShadow>
-        <boxGeometry args={[6.7, 0.07, 1.32]} />
+      <mesh position={[-1.18, 0.94, -3.3]} receiveShadow>
+        <boxGeometry args={[5.48, 0.07, 1.32]} />
         <meshPhysicalMaterial color="#7a6a55" roughness={0.28} clearcoat={0.8} clearcoatRoughness={0.25} />
       </mesh>
 
@@ -252,7 +252,7 @@ const KitchenRoom: React.FC = () => {
         <meshPhysicalMaterial color="#8a8f98" roughness={0.25} metalness={0.7} />
       </mesh>
       {/* spice jars row */}
-      {[0.7, 1.0, 1.3].map((x, i) => (
+      {[0.5, 0.8, 1.1].map((x, i) => (
         <group key={i} position={[x, 0.975, -3.0]}>
           <mesh>
             <cylinderGeometry args={[0.055, 0.05, 0.16, 12]} />
@@ -265,7 +265,7 @@ const KitchenRoom: React.FC = () => {
         </group>
       ))}
       {/* hanging herb bundle from a wall hook */}
-      <group position={[1.9, 2.62, -3.25]}>
+      <group position={[1.3, 2.62, -3.25]}>
         <mesh>
           <cylinderGeometry args={[0.01, 0.01, 0.24, 6]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -278,17 +278,16 @@ const KitchenRoom: React.FC = () => {
         ))}
       </group>
 
-      {/* Pot with gentle steam on the stove area — fades away before the
-          fridge close-up so no moving wisps cross the bright interior */}
-      <mesh position={[0.4, 1.12, -3.25]} castShadow>
+      {/* Pot with gentle steam on the stove area */}
+      <mesh position={[0.2, 1.12, -3.25]} castShadow>
         <cylinderGeometry args={[0.3, 0.27, 0.26, 28]} />
         <meshPhysicalMaterial color="#26262c" roughness={0.35} metalness={0.75} />
       </mesh>
-      <mesh position={[0.4, 1.27, -3.25]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[0.2, 1.27, -3.25]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.28, 0.018, 10, 32]} />
         <meshStandardMaterial color="#3a3a42" metalness={0.8} roughness={0.3} />
       </mesh>
-      <SteamEmitter position={[0.4, 1.35, -3.25]} window={[0, 0.02, 0.14, 0.19]} count={9} rise={1.1} />
+      <SteamEmitter position={[0.2, 1.35, -3.25]} window={[0, 0.02, 0.14, 0.19]} count={9} rise={1.1} />
 
       {/* Hanging pendant lights above the counter */}
       {[-1.6, 0.2].map((x, i) => (
@@ -340,37 +339,57 @@ const KitchenRoom: React.FC = () => {
           <meshStandardMaterial color="#4d565e" roughness={0.45} metalness={0.25} />
         </mesh>
 
-        {/* Interior cavity (visible when the door opens) */}
-        <mesh position={[0, 1.75, 0.02]}>
-          <boxGeometry args={[1.5, 3.28, 1.0]} />
-          {/* Matte, low-emissive interior: a glossy/over-bright wall catches
-              the interior point light in a moving hot spot — the white
-              "flicker" seen once the door opens. Rough matte paint washes
-              evenly and stays below the bloom threshold. */}
-          <meshStandardMaterial ref={cavityMaterial} color="#f0e8d9" emissive="#ffedc9" emissiveIntensity={0.02} roughness={0.95} metalness={0} side={THREE.BackSide} />
+        {/* Interior cavity — recessed with 20mm clearance on all axes to completely prevent Z-fighting */}
+        <mesh position={[0, 1.75, 0.0]}>
+          <boxGeometry args={[1.44, 3.20, 0.92]} />
+          <meshStandardMaterial
+            ref={cavityMaterial}
+            color="#f5ede0"
+            emissive="#ffeed4"
+            emissiveIntensity={0.02}
+            roughness={0.92}
+            metalness={0}
+            side={THREE.BackSide}
+          />
         </mesh>
+
+        {/* Crisper drawer zone at bottom */}
+        <group position={[0, 0.47, 0.02]}>
+          <mesh>
+            <boxGeometry args={[1.36, 0.62, 0.82]} />
+            <meshStandardMaterial color="#f0f4f8" roughness={0.45} transparent opacity={0.85} />
+          </mesh>
+          <mesh position={[0, 0.28, 0.415]}>
+            <boxGeometry args={[0.42, 0.04, 0.025]} />
+            <meshStandardMaterial color="#c2c7ce" roughness={0.3} metalness={0.7} />
+          </mesh>
+        </group>
+
         {/* Shelves */}
         {[0.85, 1.7, 2.5].map((y) => (
-          <mesh key={y} position={[0, y, 0.02]}>
-            <boxGeometry args={[1.44, 0.025, 0.92]} />
+          <mesh key={y} position={[0, y, 0.0]}>
+            <boxGeometry args={[1.40, 0.022, 0.86]} />
             <meshPhysicalMaterial color="#eef0f2" roughness={0.55} clearcoat={0.2} transparent opacity={0.8} />
           </mesh>
         ))}
 
-        {/* Fridge contents — the cast of chapter II (models are base-origin) */}
-        <BasilPot position={[0.02, 0.8625, 0.02]} scale={0.95} />
-        {/* Upright pose on shelves (flat pose is for countertops) — the
-            original repo composition, no overlaps between neighbours */}
-        <Garlic pose="up" position={[-0.4, 0.8625, -0.1]} scale={0.85} />
-        <Onion pose="up" position={[-0.1, 0.8625, -0.26]} scale={0.75} />
-        <BellPepper position={[0.42, 0.8625, 0.08]} scale={0.85} />
-        <Tomato position={[-0.42, 1.7125, 0.06]} scale={0.65} />
-        <Tomato position={[-0.14, 1.7125, -0.22]} scale={0.55} />
-        <Mushroom position={[0.38, 1.7125, 0.0]} scale={0.78} />
-        <Egg position={[-0.34, 2.5125, 0.22]} />
-        <Egg position={[-0.08, 2.5125, 0.3]} scale={0.92} />
-        <CheeseWedge position={[-0.62, 2.5125, 0.28]} scale={0.85} />
-        <MilkCarton position={[0.42, 2.5125, -0.1]} rotation={[0, 0.4, 0]} scale={0.95} />
+        {/* Fridge contents — proportioned and spaced with zero collision */}
+        {/* Shelf 1 (Bottom, y = 0.85): Garlic, Onion, BasilPot, BellPepper */}
+        <Garlic pose="up" position={[-0.48, 0.861, -0.05]} scale={0.52} />
+        <Onion pose="up" position={[-0.20, 0.861, -0.18]} scale={0.48} />
+        <BasilPot position={[0.12, 0.861, 0.02]} scale={0.55} />
+        <BellPepper position={[0.46, 0.861, 0.04]} scale={0.50} />
+
+        {/* Shelf 2 (Middle, y = 1.70): Two Vine Tomatoes + Mushroom */}
+        <Tomato position={[-0.42, 1.711, 0.05]} scale={0.35} />
+        <Tomato position={[-0.10, 1.711, -0.15]} scale={0.30} />
+        <Mushroom position={[0.40, 1.711, 0.02]} scale={0.46} />
+
+        {/* Shelf 3 (Top, y = 2.50): Cheese, Farm Eggs, Milk Carton */}
+        <CheeseWedge position={[-0.52, 2.511, 0.1]} rotation={[0, 0.35, 0]} scale={0.52} />
+        <Egg position={[-0.28, 2.511, 0.15]} scale={0.45} />
+        <Egg position={[-0.08, 2.511, 0.22]} scale={0.42} />
+        <MilkCarton position={[0.42, 2.511, 0.0]} rotation={[0, 0.35, 0]} scale={0.72} />
 
         {/* Door — hinged on the left edge, with playful magnet notes */}
         <group ref={door} position={[-0.85, 1.75, 0.585]}>

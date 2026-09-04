@@ -88,23 +88,20 @@ export const CinematicFX: React.FC = () => {
       // In postprocessing, luminance threshold and smoothing uniforms are on luminanceMaterial.
       // Setting them directly configures the shader pass, ensuring non-emissive surfaces never bloom.
       if (bloom.current.luminanceMaterial) {
-        bloom.current.luminanceMaterial.threshold = 0.65 - aiGlow * 0.1;
-        bloom.current.luminanceMaterial.smoothing = 0.28;
+        bloom.current.luminanceMaterial.threshold = 0.72 - aiGlow * 0.12;
+        bloom.current.luminanceMaterial.smoothing = 0.30;
       }
     }
-
-    // (chromatic aberration pass removed — its cost isn't worth the effect)
   });
 
   return (
     <EffectComposer multisampling={0} enableNormalPass={false}>
       <Bloom
         ref={bloom}
-        mipmapBlur
-        intensity={0.45}
-        luminanceThreshold={0.65}
-        luminanceSmoothing={0.28}
-        radius={0.78}
+        intensity={0.4}
+        luminanceThreshold={0.72}
+        luminanceSmoothing={0.30}
+        radius={0.65}
         resolutionScale={resScale}
       />
       <Vignette eskil={false} offset={0.22} darkness={0.82} />

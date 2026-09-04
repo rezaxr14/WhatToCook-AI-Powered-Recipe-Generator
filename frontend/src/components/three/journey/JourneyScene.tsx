@@ -182,14 +182,14 @@ export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => 
 
   return (
     <Canvas
-      dpr={mobile ? [1, 1.15] : [1, 1.35]}
+      dpr={mobile ? [1, 1.1] : [1, 1.15]}
       camera={{ position: [0, 1.6, 7.6], fov: mobile ? 58 : 44, near: 0.1, far: 80 }}
       gl={{
-        antialias: !mobile,
+        antialias: false,
         alpha: false,
         powerPreference: 'high-performance',
       }}
-      shadows={mobile ? "basic" : "soft"}
+      shadows="basic"
       onCreated={({ scene, camera, gl }) => {
         scene.fog = new THREE.FogExp2('#070503', 0.042);
         (window as unknown as Record<string, unknown>).__wtcScene = scene;

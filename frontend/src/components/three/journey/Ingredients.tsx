@@ -37,7 +37,7 @@ const TomatoCalyxLeaf: React.FC<{ angle: number }> = ({ angle }) => (
 export const Tomato: React.FC<G> = (props) => (
   <group {...props}>
     <mesh geometry={TOMATO_BODY} castShadow>
-      <meshPhysicalMaterial color="#c62f2a" roughness={0.16} clearcoat={1} clearcoatRoughness={0.12} sheen={0.4} sheenColor="#ff8a7a" />
+      <meshPhysicalMaterial color="#c62f2a" roughness={0.32} clearcoat={0.35} clearcoatRoughness={0.35} sheen={0.4} sheenColor="#ff8a7a" />
     </mesh>
     <TomatoCalyxLeaf angle={0} />
     <TomatoCalyxLeaf angle={Math.PI * 0.4} />
@@ -394,7 +394,7 @@ const PEPPER_LOBE = new THREE.SphereGeometry(0.30, 26, 20);
 export const BellPepper: React.FC<G> = (props) => (
   <group {...props}>
     <mesh geometry={PEPPER_LOBE} scale={[1, 1.42, 1]} position={[0, 0.44, 0]} castShadow>
-      <meshPhysicalMaterial color="#3f9b42" roughness={0.13} clearcoat={1} clearcoatRoughness={0.1} sheen={0.5} sheenColor="#b8f5b0" />
+      <meshPhysicalMaterial color="#3f9b42" roughness={0.28} clearcoat={0.35} clearcoatRoughness={0.35} sheen={0.5} sheenColor="#b8f5b0" />
     </mesh>
     {[0, 1, 2].map((i) => {
       const a = (i / 3) * Math.PI * 2 + 0.5;
@@ -406,7 +406,7 @@ export const BellPepper: React.FC<G> = (props) => (
           position={[Math.sin(a) * 0.17, 0.4, Math.cos(a) * 0.17]}
           castShadow
         >
-          <meshPhysicalMaterial color="#3f9b42" roughness={0.13} clearcoat={1} clearcoatRoughness={0.1} />
+          <meshPhysicalMaterial color="#3f9b42" roughness={0.28} clearcoat={0.35} clearcoatRoughness={0.35} />
         </mesh>
       );
     })}

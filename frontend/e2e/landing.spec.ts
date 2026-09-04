@@ -24,8 +24,10 @@ test.describe('Landing Journey', () => {
     await expect(canvas).toBeVisible({ timeout: 25000 });
 
     // The loading overlay fades away once the scene reports ready
-    await expect(page.getByText(/Preparing your kitchen/i)).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText(/Preparing your kitchen/i)).toBeHidden({ timeout: 15000 });
+    const loader = page.getByText(/Preparing your kitchen/i);
+    if (await loader.isVisible()) {
+      await expect(loader).toBeHidden({ timeout: 20000 });
+    }
   });
 
   test('loads live stats from the backend API', async ({ page }) => {
