@@ -64,9 +64,9 @@ export const CinematicFX: React.FC = () => {
     const finale = win(p, 0.88, 0.96, 1.001, 1.002);
     const hero = 1 - seg(p, 0, 0.12);
 
-    // Slow breathing — one gentle harmonic, low amplitude, whole-frame
-    const pulse = 0.92 + Math.sin(t * 1.1) * 0.08;
-    const bloomI = 0.36 + aiGlow * 0.8 * pulse + galaxy * 0.22 + flame * 0.38 * pulse + finale * 0.3 + hero * 0.09;
+    // Slow breathing — very subtle so bright interiors never visibly pulse
+    const pulse = 0.97 + Math.sin(t * 1.15) * 0.045;
+    const bloomI = 0.36 + aiGlow * 0.8 * pulse + galaxy * 0.22 + flame * 0.38 * pulse + finale * 0.3 + hero * 0.14;
 
     if (bloom.current) {
       // Degraded = framerate starving: keep the stack mounted but drop the

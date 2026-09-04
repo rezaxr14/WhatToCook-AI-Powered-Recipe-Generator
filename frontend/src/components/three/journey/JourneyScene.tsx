@@ -9,8 +9,6 @@ import { Galaxy, RecipeMatchCards } from './Galaxy';
 import { Cooking } from './Cooking';
 import { DustField, EmberField, ShootingStar, Starback } from './Effects';
 import { CinematicFX } from './FX';
-import { FadeHtml } from './FadeHtml';
-import { useTranslation } from 'react-i18next';
 
 /**
  * The full journey world. One continuous scene; the scroll position is the
@@ -175,48 +173,6 @@ const ChapterLights: React.FC = () => {
   );
 };
 
-// ---------- In-world fridge labels ----------
-// Chips sit just inside the open door plane (fridge front is z≈-2.47 in
-// world space), anchored to each shelf so they read as exhibit tags for the
-// ingredients — never floating over the food itself.
-
-const CHIP_CLASS =
-  'pointer-events-none flex items-center gap-1.5 rounded-full border border-amber-200/25 bg-stone-950/70 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.22em] text-amber-100/95 shadow-[0_2px_10px_rgba(0,0,0,0.45)] backdrop-blur-md whitespace-nowrap';
-
-const ShelfTag: React.FC<{ chip: string; label: string }> = ({ chip, label }) => (
-  <span className={chip}>
-    <span className="h-1 w-1 shrink-0 rounded-full bg-amber-300/90 shadow-[0_0_6px_rgba(252,211,77,0.9)]" />
-    {label}
-  </span>
-);
-
-const FridgeLabels: React.FC = () => {
-  const { t } = useTranslation();
-  const chip = CHIP_CLASS;
-  return (
-    <>
-      {/* Top shelf (milk / eggs) */}
-      <FadeHtml position={[2.94, 2.58, -2.5]} window={[0.215, 0.245, 0.3, 0.33]} distanceFactor={5}>
-        <ShelfTag chip={chip} label={t('story.ingMilk')} />
-      </FadeHtml>
-      <FadeHtml position={[2.18, 2.56, -2.5]} window={[0.225, 0.255, 0.3, 0.33]} distanceFactor={5}>
-        <ShelfTag chip={chip} label={t('story.ingEggs')} />
-      </FadeHtml>
-      {/* Middle shelf (tomatoes) */}
-      <FadeHtml position={[2.16, 1.86, -2.5]} window={[0.245, 0.275, 0.305, 0.335]} distanceFactor={5}>
-        <ShelfTag chip={chip} label={t('story.ingTomato')} />
-      </FadeHtml>
-      {/* Bottom shelf (basil pot / garlic) */}
-      <FadeHtml position={[2.62, 1.02, -2.5]} window={[0.255, 0.285, 0.31, 0.34]} distanceFactor={5}>
-        <ShelfTag chip={chip} label={t('story.ingBasil')} />
-      </FadeHtml>
-      <FadeHtml position={[2.0, 1.0, -2.5]} window={[0.265, 0.295, 0.315, 0.345]} distanceFactor={5}>
-        <ShelfTag chip={chip} label={t('story.ingGarlic')} />
-      </FadeHtml>
-    </>
-  );
-};
-
 // ---------- Scene ----------
 
 export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => {
@@ -262,7 +218,6 @@ export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => 
       <Galaxy />
       <RecipeMatchCards />
       <Cooking />
-      <FridgeLabels />
       <Starback />
       <ShootingStar />
       <EmberField position={[0, 0.9, -0.1]} window={[0.93, 0.95, 1.01, 1.02]} count={10} spread={1.1} rise={0.8} />

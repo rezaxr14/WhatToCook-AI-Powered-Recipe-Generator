@@ -11,16 +11,28 @@ const SAUCE_DARK = new THREE.Color('#a83520');
 
 // ---------------------------------------------------------------------------
 // Drop choreography — one ingredient at a time, each into its own slot.
-// Slots sit on a ring inside the pan (r≈0.44–0.46) so nothing overlaps, and
-// each piece's rest height puts its own underside ON the sauce/floor of the
-// pan (wedge chunks rest lower, whole garlic bulbs rest higher — the garlic
-// flat-layout keeps its bulb bottom at the group origin).
+// Pan geometry (station-local): the pan's solid metal top is at y≈0.315 and
+// the sauce surface sits at ≈0.325. A piece whose underside rests ABOVE
+// 0.315 visibly sits IN the pan; anything below that is buried in the pan
+// body (the "piercing" bug). Slots sit on a ring r≈0.42 at 60° spacing so
+// no two pieces ever overlap (nearest neighbours ≈0.42 apart, larger than
+// any piece's half-width).
 // ---------------------------------------------------------------------------
 const DROP_START_Y = 2.6; // just above the top of frame — appears from off-screen
 const DROP_STAGGER = 0.13; // gap between consecutive pieces (fraction of the drop window)
 const DROP_SPAN = 0.42; // fall duration per piece (fraction of the drop window)
-const DROP_REST_Y = [0.25, 0.25, 0.26, 0.335, 0.335]; // per piece — chunk / chunk / chunk / garlic / garlic
-const DROP_YAW = [0.7, -0.6, 1.9, 0.9, -1.4]; // calm facing after landing (yaw only, no tilt)
+// Rest heights: wedge chunks sit on the sauce with their bottom edge clear
+// of the pan body; garlic bulbs (origin = bulb underside) rest on the sauce.
+// Rest heights (measured in-world): wedge chunks bottom out at origin+0.042,
+// garlic bulbs at origin−0.004. Targets: bottoms at ≈0.335 (on the sauce).
+const WEDGE_REST = 0.293; // → bottom ≈0.335
+const GARLIC_REST = 0.345; // → bottom ≈0.341
+// One slot per piece, in JSX order: wedge, garlic, wedge, garlic, wedge.
+const DROP_REST_Y = [WEDGE_REST, GARLIC_REST, WEDGE_REST, GARLIC_REST, WEDGE_REST];
+// Calm facing after landing (yaw only — no tilt, so each piece reads).
+// Garlics are yawed so their long axis runs ALONG the ring (tangential),
+// never pointing at a neighbouring wedge; wedges keep varied casual yaws.
+const DROP_YAW = [0.9, 2.09, 2.3, -1.05, 0.5];
 // Airborne tumble per piece — melts away as the piece nears its slot.
 const DROP_TUMBLE: Array<[number, number]> = [
   [0.8, -0.5],
@@ -182,13 +194,14 @@ export const Cooking: React.FC = () => {
         <pointLight ref={flameLight} position={[0, 0.35, 0.2]} intensity={0} distance={4.5} decay={1.7} color="#ff9a4a" />
         <EmberField position={[0, 0.45, 0]} window={[0.6, 0.625, 0.72, 0.775]} count={16} spread={0.75} rise={1.5} />
 
-        {/* Falling ingredients — one piece per ring slot, so nothing piles up */}
+        {/* Falling ingredients — five slots on a 60° ring, one piece each,
+            alternating wedge / garlic so nothing ever overlaps */}
         <group ref={drops}>
-          <TomatoChunk position={[0.418, 2.6, 0.136]} />
-          <TomatoChunk position={[-0.418, 2.6, 0.136]} />
-          <TomatoChunk position={[0.26, 2.6, -0.356]} />
-          <Garlic position={[0, 2.6, 0.44]} scale={0.62} />
-          <Garlic position={[-0.26, 2.6, -0.356]} scale={0.58} />
+          <TomatoChunk name="drop-0" position={[0.42, 2.6, 0]} />
+          <Garlic name="drop-1" position={[0.21, 2.6, 0.364]} scale={0.74} />
+          <TomatoChunk name="drop-2" position={[-0.21, 2.6, 0.364]} />
+          <Garlic name="drop-3" position={[-0.21, 2.6, -0.364]} scale={0.7} />
+          <TomatoChunk name="drop-4" position={[0.21, 2.6, -0.364]} />
         </group>
 
         <SteamEmitter position={[0, 0.5, 0]} window={[0.635, 0.66, 0.71, 0.78]} count={10} spread={0.5} rise={1.4} />

@@ -40,16 +40,17 @@ const CHAP_WINDOWS: Record<
   ChapKey,
   { a: number; b: number; c: number; d: number; drift: number; startVisible?: boolean }
 > = {
-  hero: { a: 0, b: 0.001, c: 0.075, d: 0.13, drift: 40, startVisible: true },
-  fridge: { a: 0.2, b: 0.24, c: 0.295, d: 0.34, drift: 40 },
-  ai: { a: 0.355, b: 0.4, c: 0.445, d: 0.49, drift: 40 },
-  galaxy: { a: 0.485, b: 0.525, c: 0.57, d: 0.61, drift: 40 },
-  s1: { a: 0.585, b: 0.615, c: 0.65, d: 0.68, drift: 40 },
-  s2: { a: 0.665, b: 0.695, c: 0.725, d: 0.755, drift: 40 },
-  s3: { a: 0.73, b: 0.76, c: 0.795, d: 0.825, drift: 40 },
-  s4: { a: 0.8, b: 0.83, c: 0.86, d: 0.89, drift: 40 },
-  final: { a: 0.88, b: 0.91, c: 0.965, d: 0.995, drift: 40 },
-  cta: { a: 0.945, b: 0.98, c: 0.98, d: 0.98, drift: 48 }, // fade-in only (c==d → never auto-fades)
+  // Fast fades with clean dead zones — no two captions ever share the frame.
+  hero: { a: 0, b: 0.001, c: 0.07, d: 0.1, drift: 40, startVisible: true },
+  fridge: { a: 0.19, b: 0.205, c: 0.315, d: 0.335, drift: 40 },
+  ai: { a: 0.355, b: 0.37, c: 0.465, d: 0.485, drift: 40 },
+  galaxy: { a: 0.505, b: 0.52, c: 0.585, d: 0.6, drift: 40 },
+  s1: { a: 0.6, b: 0.615, c: 0.65, d: 0.668, drift: 40 },
+  s2: { a: 0.672, b: 0.687, c: 0.732, d: 0.75, drift: 40 },
+  s3: { a: 0.76, b: 0.775, c: 0.812, d: 0.83, drift: 40 },
+  s4: { a: 0.84, b: 0.855, c: 0.885, d: 0.902, drift: 40 },
+  final: { a: 0.912, b: 0.928, c: 0.96, d: 0.975, drift: 40 },
+  cta: { a: 0.975, b: 0.995, c: 0.995, d: 0.995, drift: 48 }, // fade-in only (c==d → never auto-fades)
 };
 
 /* ------------------------------------------------------------------ */
@@ -78,23 +79,23 @@ const TOUR_STOPS: ChapterStop[] = [
  * before the next cut. Total ≈ 55 s.
  */
 const TOUR_SEGMENTS: Array<[number, number, number]> = [
-  [0, 0.06, 2.6], // opening cut — dolly in fast, no dead air
-  [0.06, 0.28, 4.6], // glide to the fridge as the door swings open
-  [0.28, 0.28, 3.0], // beat: fridge shelves
-  [0.28, 0.445, 5.4], // pull back into the constellation
-  [0.445, 0.445, 2.8], // beat: AI vision
-  [0.445, 0.545, 3.8], // drift into the galaxy
-  [0.545, 0.545, 2.4], // beat: galaxy
-  [0.545, 0.66, 3.6], // descend to the stove — pieces drop in sequence
-  [0.66, 0.66, 2.2], // beat: everything in the pan
-  [0.66, 0.72, 2.2], // flame and sauce develop
-  [0.72, 0.72, 2.8], // beat: cooking
-  [0.72, 0.8, 3.4], // the pan becomes the plated dish
-  [0.8, 0.85, 1.6], // settle the shot on the dish
-  [0.85, 0.85, 2.6], // beat: the dish
-  [0.85, 0.945, 4.6], // orbit while the table rises
-  [0.945, 0.945, 3.0], // beat: dinner on the table
-  [0.945, 1, 3.4], // pull out to the finale
+  [0, 0.12, 2.0], // opening cut — moving at full speed from the first frame
+  [0.12, 0.28, 3.4], // glide to the fridge as the door swings open
+  [0.28, 0.28, 2.4], // beat: fridge shelves
+  [0.28, 0.445, 4.2], // pull back into the constellation
+  [0.445, 0.445, 2.2], // beat: AI vision
+  [0.445, 0.545, 3.4], // drift into the galaxy
+  [0.545, 0.545, 2.2], // beat: galaxy
+  [0.545, 0.66, 3.2], // descend to the stove — pieces drop in sequence
+  [0.66, 0.66, 1.6], // beat: everything in the pan
+  [0.66, 0.72, 2.0], // flame and sauce develop
+  [0.72, 0.72, 2.4], // beat: cooking
+  [0.72, 0.8, 2.8], // the pan becomes the plated dish
+  [0.8, 0.85, 1.8], // settle the shot on the dish
+  [0.85, 0.85, 2.2], // beat: the dish
+  [0.85, 0.945, 3.6], // orbit while the table rises
+  [0.945, 0.945, 2.0], // beat: dinner on the table
+  [0.945, 1, 2.8], // pull out to the finale
 ];
 
 const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -552,45 +553,45 @@ export const LandingPage: React.FC = () => {
       {/* ---------- Chapter II — The fridge ---------- */}
       <Chapter k="fridge" register={registerChapter} className="items-center justify-start">
         <div className="max-w-md px-8 sm:px-16">
-          <div className="text-[11px] font-black tracking-[0.4em] text-amber-300/90" style={DISPLAY_FONT}>
+          <div className="text-[10px] font-black tracking-[0.4em] text-amber-300/90" style={DISPLAY_FONT}>
             01 — {t('story.heroCta')}
           </div>
-          <h2 className="mt-4 text-4xl font-black leading-tight tracking-tight text-stone-50 sm:text-5xl" style={DISPLAY_FONT}>
+          <h2 className="mt-3 text-2xl font-black leading-tight tracking-tight text-stone-50 sm:text-4xl" style={DISPLAY_FONT}>
             {t('story.fridgeTitle')}
           </h2>
-          <p className="mt-4 text-sm font-medium leading-relaxed text-stone-300/90 sm:text-base">{t('story.fridgeSub')}</p>
+          <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-stone-300/90">{t('story.fridgeSub')}</p>
         </div>
       </Chapter>
 
       {/* ---------- Chapter III — AI vision ---------- */}
       <Chapter k="ai" register={registerChapter} className="items-center justify-end">
         <div className="max-w-md px-8 text-right sm:px-20">
-          <div className="text-[11px] font-black tracking-[0.4em] text-amber-300/90" style={DISPLAY_FONT}>
+          <div className="text-[10px] font-black tracking-[0.4em] text-amber-300/90" style={DISPLAY_FONT}>
             02 — AI
           </div>
-          <h2 className="mt-4 text-4xl font-black leading-tight tracking-tight text-stone-50 sm:text-5xl" style={DISPLAY_FONT}>
+          <h2 className="mt-3 text-2xl font-black leading-tight tracking-tight text-stone-50 sm:text-4xl" style={DISPLAY_FONT}>
             {t('story.aiTitle')}
           </h2>
-          <p className="mt-4 text-sm font-medium leading-relaxed text-stone-300/90 sm:text-base">{t('story.aiSub')}</p>
+          <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-stone-300/90">{t('story.aiSub')}</p>
         </div>
       </Chapter>
 
       {/* ---------- Chapter IV — Recipe galaxy ---------- */}
       <Chapter k="galaxy" register={registerChapter} className="items-start justify-center pt-24">
-        <div className="max-w-2xl px-8 text-center">
-          <h2 className="text-3xl font-black leading-tight tracking-tight text-stone-50 sm:text-5xl" style={DISPLAY_FONT}>
+        <div className="max-w-xl px-8 text-center">
+          <h2 className="text-2xl font-black leading-tight tracking-tight text-stone-50 sm:text-4xl" style={DISPLAY_FONT}>
             {t('story.galaxyTitle')}
           </h2>
-          <p className="mx-auto mt-3 max-w-lg text-sm font-medium text-stone-300/90 sm:text-[15px]">{t('story.galaxySub')}</p>
+          <p className="mx-auto mt-3 max-w-md text-sm font-medium text-stone-300/90">{t('story.galaxySub')}</p>
         </div>
       </Chapter>
 
       {/* ---------- Chapter V — Cooking steps ---------- */}
       {([
-        [0.585, 0.615, 0.65, 0.68, 's1', '01', t('story.prep')],
-        [0.665, 0.695, 0.725, 0.755, 's2', '02', t('story.cook')],
-        [0.73, 0.76, 0.795, 0.825, 's3', '03', t('story.combine')],
-        [0.8, 0.83, 0.86, 0.89, 's4', '04', t('story.serve')],
+        [0.6, 0.615, 0.65, 0.668, 's1', '01', t('story.prep')],
+        [0.672, 0.687, 0.732, 0.75, 's2', '02', t('story.cook')],
+        [0.76, 0.775, 0.812, 0.83, 's3', '03', t('story.combine')],
+        [0.84, 0.855, 0.885, 0.902, 's4', '04', t('story.serve')],
       ] as Array<[number, number, number, number, ChapKey, string, string]>).map(([a, b, c, d, key, num, word]) => (
         <Chapter key={key} k={key} register={registerChapter} range={[a, b, c, d]} className="items-end">
           <div className="flex items-center gap-3 p-10 sm:p-16">

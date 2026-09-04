@@ -10,6 +10,24 @@ interface RecipeCardProps {
   isMatched?: boolean;
 }
 
+// Distinct, self-hosted fallbacks — if a photo ever fails to load, each card
+// still gets its own image (never a shared one, so a grid can't look alike).
+const FALLBACK_POOL = [
+  '/media/recipes/carbonara.jpg',
+  '/media/recipes/avocado_toast.jpg',
+  '/media/recipes/pancakes.jpg',
+  '/media/recipes/garlic_shrimp.jpg',
+  '/media/recipes/omelette.jpg',
+  '/media/recipes/penne_pomodoro.jpg',
+  '/media/recipes/grilled_cheese.jpg',
+];
+
+const fallbackFor = (name: string): string => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return FALLBACK_POOL[Math.abs(h) % FALLBACK_POOL.length];
+};
+
 export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isMatched }) => {
   const matchedRecipe = recipe as MatchedRecipe;
   const hasMatchInfo = isMatched && matchedRecipe.match_percentage !== undefined;
@@ -24,6 +42,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isMatched }) => 
     }
     return '/media/recipes/default.png';
   };
+  const fallbackUrl = fallbackFor(recipe.name);
 
   return (
     <StyledCard $interactive $padded={false} className="group flex flex-col h-full bg-white">
@@ -34,8 +53,8 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isMatched }) => 
           alt={recipe.name}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           onError={(e) => {
-            (e.target as HTMLImageElement).src =
-              'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
+            const t = e.target as HTMLImageElement;
+            if (t.src !== fallbackUrl) t.src = fallbackUrl;
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-stone-900/70 via-stone-900/20 to-transparent opacity-90 transition-opacity group-hover:opacity-100" />

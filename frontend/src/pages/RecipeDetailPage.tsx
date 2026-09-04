@@ -138,8 +138,11 @@ export const RecipeDetailPage: React.FC = () => {
           alt={recipe.name}
           className="absolute inset-0 w-full h-full object-cover opacity-60"
           onError={(e) => {
-            (e.target as HTMLImageElement).src =
-              'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80';
+            // fall back to the recipe's own card photo when the hero fails
+            const t = e.target as HTMLImageElement;
+            const alt = `/media/${recipe.image ?? ''}`;
+            if (t.src !== alt && (recipe.image ?? '').length > 0) t.src = alt;
+            else if (t.src !== '/media/recipes/default.png') t.src = '/media/recipes/default.png';
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/60 to-transparent" />
