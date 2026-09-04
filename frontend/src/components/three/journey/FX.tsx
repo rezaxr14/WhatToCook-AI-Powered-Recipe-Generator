@@ -72,7 +72,7 @@ export const CinematicFX: React.FC = () => {
       // Degraded = framerate starving: keep the stack mounted but drop the
       // bloom to a whisper; it breathes back once frames recover.
       bloom.current.intensity = degraded ? 0.12 : bloomI;
-      bloom.current.threshold = 0.28 - aiGlow * 0.06;
+      bloom.current.threshold = 0.45 - aiGlow * 0.04;
       bloom.current.smoothing = 0.34;
     }
 

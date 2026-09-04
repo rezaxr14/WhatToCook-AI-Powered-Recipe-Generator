@@ -64,6 +64,34 @@ export const TomatoChunk: React.FC<G> = (props) => (
   </group>
 );
 
+// ---------------- Penne (pasta) ----------------
+
+/** A raw penne tube, lying flat. The cooking scene needs actual pasta in the
+ *  pan so the finished plated pasta dish feels earned — tomatoes + garlic
+ *  alone can't become a pasta nest.
+ *
+ *  Cylinder axis runs along X after the rotation; vertical extent is just
+ *  the tube radius (±0.055), so the piece's underside sits at origin − 0.055.
+ */
+export const Penne: React.FC<G> = (props) => (
+  <group {...props}>
+    {/* pale durum tube */}
+    <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
+      <cylinderGeometry args={[0.055, 0.055, 0.17, 14]} />
+      <meshPhysicalMaterial color="#e6c98f" roughness={0.5} clearcoat={0.25} clearcoatRoughness={0.4} sheen={0.3} sheenColor="#fff2cf" />
+    </mesh>
+    {/* darker end bevels so it reads as an open tube, not a stick */}
+    <mesh position={[0.085, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+      <cylinderGeometry args={[0.058, 0.058, 0.012, 14]} />
+      <meshStandardMaterial color="#d8b574" roughness={0.65} />
+    </mesh>
+    <mesh position={[-0.085, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+      <cylinderGeometry args={[0.058, 0.058, 0.012, 14]} />
+      <meshStandardMaterial color="#d8b574" roughness={0.65} />
+    </mesh>
+  </group>
+);
+
 // ---------------- Lemon ----------------
 
 const LEMON_BODY = lathe(

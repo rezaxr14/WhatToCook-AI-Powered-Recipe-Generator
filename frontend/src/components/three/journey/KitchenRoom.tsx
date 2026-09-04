@@ -37,6 +37,8 @@ const KitchenRoom: React.FC = () => {
   const room = useRef<THREE.Group>(null);
   const door = useRef<THREE.Group>(null);
   const fridgeLight = useRef<THREE.PointLight>(null);
+  const doorYawRef = useRef(0); // smoothed door yaw (no stepped scroll jumps)
+  const fridgeIRef = useRef(0); // smoothed interior light intensity
   const bulb1 = useRef<THREE.PointLight>(null);
   const bulb2 = useRef<THREE.PointLight>(null);
   const table = useRef<THREE.Group>(null);
@@ -108,7 +110,7 @@ const KitchenRoom: React.FC = () => {
     []
   );
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     const p = journey.progress;
     const g = room.current;
     if (!g) return;
@@ -119,11 +121,21 @@ const KitchenRoom: React.FC = () => {
     g.visible = sink < 0.999;
 
     // Fridge door: opens on approach, closes again for the finale.
-    const open = seg(p, 0.12, 0.2) * (1 - seg(p, 0.9, 0.97));
-    if (door.current) door.current.rotation.y = -open * 1.95;
+    // Door yaw and interior light are frame-smoothed toward their targets so
+    // even a stepped wheel-scroll eases them — no discrete jumps in the
+    // shadows or wall brightness while the door swings.
+    const open = seg(p, 0.12, 0.17) * (1 - seg(p, 0.9, 0.97));
+    const ease = 1 - Math.exp(-8 * Math.min(delta, 0.1));
+    const doorYawT = -open * 1.95;
+    doorYawRef.current += (doorYawT - doorYawRef.current) * ease;
+    if (door.current) door.current.rotation.y = doorYawRef.current;
 
-    // Interior fridge light spills out with the door.
-    if (fridgeLight.current) fridgeLight.current.intensity = open * 3.2;
+    // Interior fridge light spills out with the door. Kept modest and wide
+    // (no hot spot on the walls) and fully on well before the shelf close-up,
+    // so the interior is rock-steady while the camera dwells on it.
+    const lightT = open * 2.0;
+    fridgeIRef.current += (lightT - fridgeIRef.current) * ease;
+    if (fridgeLight.current) fridgeLight.current.intensity = fridgeIRef.current;
 
     // Warm pendant pools of light — brighter once home again. Intentionally
     // ROCK-STEADY: any high-frequency intensity wobble reads as buzzing on
@@ -269,7 +281,7 @@ const KitchenRoom: React.FC = () => {
         <torusGeometry args={[0.28, 0.018, 10, 32]} />
         <meshStandardMaterial color="#3a3a42" metalness={0.8} roughness={0.3} />
       </mesh>
-      <SteamEmitter position={[0.4, 1.35, -3.25]} window={[0, 0.02, 0.2, 0.26]} count={9} rise={1.1} />
+      <SteamEmitter position={[0.4, 1.35, -3.25]} window={[0, 0.02, 0.14, 0.19]} count={9} rise={1.1} />
 
       {/* Hanging pendant lights above the counter */}
       {[-1.6, 0.2].map((x, i) => (
@@ -324,13 +336,17 @@ const KitchenRoom: React.FC = () => {
         {/* Interior cavity (visible when the door opens) */}
         <mesh position={[0, 1.75, 0.02]}>
           <boxGeometry args={[1.5, 3.28, 1.0]} />
-          <meshStandardMaterial color="#f7efe2" emissive="#ffedc9" emissiveIntensity={0.55} side={THREE.BackSide} />
+          {/* Matte, low-emissive interior: a glossy/over-bright wall catches
+              the interior point light in a moving hot spot — the white
+              "flicker" seen once the door opens. Rough matte paint washes
+              evenly and stays below the bloom threshold. */}
+          <meshStandardMaterial color="#efe7d8" emissive="#ffedc9" emissiveIntensity={0.36} roughness={0.95} metalness={0} side={THREE.BackSide} />
         </mesh>
         {/* Shelves */}
         {[0.85, 1.7, 2.5].map((y) => (
           <mesh key={y} position={[0, y, 0.02]}>
             <boxGeometry args={[1.44, 0.025, 0.92]} />
-            <meshPhysicalMaterial color="#eef0f2" roughness={0.32} clearcoat={0.5} transparent opacity={0.82} />
+            <meshPhysicalMaterial color="#eef0f2" roughness={0.55} clearcoat={0.2} transparent opacity={0.8} />
           </mesh>
         ))}
 
@@ -375,7 +391,7 @@ const KitchenRoom: React.FC = () => {
           </mesh>
         </group>
 
-        <pointLight ref={fridgeLight} position={[0, 1.8, 0.4]} intensity={0} distance={6.5} decay={1.5} color="#ffedc9" />
+        <pointLight ref={fridgeLight} position={[0, 1.8, 0.4]} intensity={0} distance={5.5} decay={2.0} color="#ffedc9" />
       </group>
 
       {/* Scattered counter ingredients — the room feels used, alive */}
