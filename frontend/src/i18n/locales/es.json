@@ -219,7 +219,8 @@
     "ctaTitle": "¿Qué vas a cocinar?",
     "ctaSub": "Dile a WhatToCook qué hay en tu cocina.",
     "ctaStart": "Empieza a cocinar",
-    "loading": "Preparando tu cocina..."
+    "loading": "Preparando tu cocina...",
+    "ingPasta": "Pasta"
   },
   "tour": {
     "watch": "Ver la película",
@@ -236,5 +237,11 @@
     "stopCook": "Cocinando",
     "stopDish": "El plato",
     "stopFinale": "De vuelta a casa"
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "sub": "La página que buscas no existe o se ha movido.",
+    "home": "Volver al viaje",
+    "recipes": "Ver recetas"
   }
 }

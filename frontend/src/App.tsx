@@ -11,6 +11,7 @@ import { Footer } from './components/common/Footer';
 import { PWAInstallBanner } from './components/common/PWAInstallBanner';
 import { QuickActionsWidget } from './components/common/QuickActionsWidget';
 import { LandingPage } from './pages/LandingPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import { RecipesPage } from './pages/RecipesPage';
 import { PantryPage } from './pages/PantryPage';
 import { CanCookPage } from './pages/CanCookPage';
@@ -52,7 +53,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/recipe/:id" element={<RecipeDetailPage />} />
           <Route path="/ai-recipe/:name" element={<AIRecipeDetailPage />} />
           <Route path="/auth" element={<AuthPage />} />
-          <Route path="*" element={<LandingPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
       <Footer />

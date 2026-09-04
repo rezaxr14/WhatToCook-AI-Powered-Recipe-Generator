@@ -219,7 +219,8 @@
     "ctaTitle": "What will you cook?",
     "ctaSub": "Tell WhatToCook what’s in your kitchen.",
     "ctaStart": "Start Cooking",
-    "loading": "Preparing your kitchen..."
+    "loading": "Preparing your kitchen...",
+    "ingPasta": "Pasta"
   },
   "tour": {
     "watch": "Watch the film",
@@ -236,5 +237,11 @@
     "stopCook": "Cooking",
     "stopDish": "The Dish",
     "stopFinale": "Homecoming"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "sub": "The page you are looking for doesn’t exist or has moved.",
+    "home": "Back to the journey",
+    "recipes": "Browse recipes"
   }
 }

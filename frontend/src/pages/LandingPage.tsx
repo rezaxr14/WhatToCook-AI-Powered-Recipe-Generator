@@ -165,10 +165,27 @@ export const LandingPage: React.FC = () => {
   // Mouse parallax for the whole scene
   useEffect(() => initPointerParallax(), []);
 
+  // Deterministic opening shot: the journey module state and the scroll
+  // position both persist across SPA navigation, so reset both on mount —
+  // otherwise a back-nav or reload could resume the film mid-chapter.
+  useEffect(() => {
+    journey.progress = 0;
+    window.scrollTo(0, 0);
+  }, []);
+
   // Unmount the loading veil after its fade-out transition completes.
   useEffect(() => {
     if (!ready) return;
     const id = setTimeout(() => setVeilGone(true), 900);
+    return () => clearTimeout(id);
+  }, [ready]);
+
+  // Veil safety net: if the WebGL scene never reports ready (context
+  // blocked, driver crash, tab throttling), lift the veil anyway so the
+  // hero content and text chapters stay reachable.
+  useEffect(() => {
+    if (ready) return;
+    const id = setTimeout(() => setReady(true), 20000);
     return () => clearTimeout(id);
   }, [ready]);
 
@@ -631,7 +648,7 @@ export const LandingPage: React.FC = () => {
             </div>
             <div className="mt-4 text-[10px] font-black tracking-[0.25em] text-stone-400">{t('story.cardIng')}</div>
             <ul className="mt-2 space-y-1 text-xs font-medium text-stone-300">
-              {['Tomatoes', 'Pasta', 'Garlic', 'Basil'].map((ing) => (
+              {[t('story.ingTomato'), t('story.ingPasta'), t('story.ingGarlic'), t('story.ingBasil')].map((ing) => (
                 <li key={ing} className="flex items-center gap-2">
                   <span className="h-1 w-1 rounded-full bg-amber-400" />
                   {ing}

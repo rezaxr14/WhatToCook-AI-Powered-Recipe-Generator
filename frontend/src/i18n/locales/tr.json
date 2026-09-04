@@ -217,7 +217,8 @@
     "ctaTitle": "Ne pişireceksin?",
     "ctaSub": "WhatToCook’a mutfağında olanı söyle.",
     "ctaStart": "Pişirmeye Başla",
-    "loading": "Mutfığın hazırlanıyor..."
+    "loading": "Mutfığın hazırlanıyor...",
+    "ingPasta": "Makarna"
   },
   "tour": {
     "watch": "Filmi izle",
@@ -234,5 +235,11 @@
     "stopCook": "Pişirme",
     "stopDish": "Yemek",
     "stopFinale": "Eve Dönüş"
+  },
+  "notFound": {
+    "title": "Sayfa bulunamadı",
+    "sub": "Aradığınız sayfa yok veya taşınmış.",
+    "home": "Yolculuğa dön",
+    "recipes": "Tariflere göz at"
   }
 }
