@@ -2,50 +2,12 @@ import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { journey, seg, win } from './state';
-import { TomatoChunk, Penne, Garlic, BasilPot } from './Ingredients';
+import { TomatoChunk, Garlic, BasilPot } from './Ingredients';
 import { SteamEmitter, EmberField } from './Effects';
 
 // Sauce tint endpoints — hoisted so the per-frame update allocates nothing.
 const SAUCE_BASE = new THREE.Color('#e2603f');
 const SAUCE_DARK = new THREE.Color('#a83520');
-
-// ---------------------------------------------------------------------------
-// Drop choreography — one ingredient at a time, each into its own slot.
-// Pan geometry (station-local): the pan's solid metal top is at y≈0.315 and
-// the sauce surface sits at ≈0.325. A piece whose underside rests ABOVE
-// 0.315 visibly sits IN the pan; anything below that is buried in the pan
-// body (the "piercing" bug). Slots sit on a ring r≈0.42 at 60° spacing so
-// no two pieces ever overlap (nearest neighbours ≈0.42 apart, larger than
-// any piece's half-width).
-// ---------------------------------------------------------------------------
-const DROP_START_Y = 2.6; // just above the top of frame — appears from off-screen
-const DROP_STAGGER = 0.13; // gap between consecutive pieces (fraction of the drop window)
-const DROP_SPAN = 0.42; // fall duration per piece (fraction of the drop window)
-// Rest heights: wedge chunks sit on the sauce with their bottom edge clear
-// of the pan body; garlic bulbs (origin = bulb underside) rest on the sauce.
-// Rest heights (measured in-world): wedge chunks bottom out at origin+0.042,
-// garlic bulbs at origin−0.004, penne tubes at origin−0.055 (tube radius).
-// Targets: bottoms at ≈0.335 — resting on the sauce, clear of the pan body.
-const WEDGE_REST = 0.293; // → bottom ≈0.335
-const GARLIC_REST = 0.345; // → bottom ≈0.341
-const PENNE_REST = 0.39; // → bottom ≈0.335
-// One slot per piece, in JSX order: wedge, penne, garlic, penne, wedge.
-// Raw penne in the pan = the pasta that becomes the plated nest later.
-const DROP_REST_Y = [WEDGE_REST, PENNE_REST, GARLIC_REST, PENNE_REST, WEDGE_REST];
-// Calm facing after landing (yaw only — no tilt, so each piece reads).
-// All pieces are small enough (half-length ≤ ~0.16) relative to the ring
-// spacing (0.42) that no yaw can push one into a neighbour; yaws just vary
-// for a natural, hand-tossed look. Penne ends are axial, so they are yawed
-// across the ring — like pasta tossed into a pan.
-const DROP_YAW = [0.9, 2.6, -1.1, 0.5, 2.3];
-// Airborne tumble per piece — melts away as the piece nears its slot.
-const DROP_TUMBLE: Array<[number, number]> = [
-  [0.8, -0.5],
-  [0.5, 0.7],
-  [-0.5, -0.6],
-  [0.6, 0.9],
-  [0.75, 0.45],
-];
 
 /**
  * Chapter V–VI: the magic moment. Ingredients drop into the pan, the flame
@@ -105,30 +67,15 @@ export const Cooking: React.FC = () => {
       sm.color.copy(SAUCE_BASE).lerp(SAUCE_DARK, s);
     }
 
-    // Ingredients dropping into the pan — a readable sequence: wedges first,
-    // garlic bulbs last. Each piece is hidden until its turn, falls from just
-    // above the frame into its own slot, and settles softly on the sauce with
-    // a gentle landing pat — no mid-air hover, no overlaps, no piercing.
+    // Ingredients dropping into the pan
     if (drops.current) {
       const drop = seg(p, 0.585, 0.645);
+      drops.current.visible = drop > 0.001 && p < 0.73;
       drops.current.children.forEach((child, i) => {
-        const t = THREE.MathUtils.clamp((drop - i * DROP_STAGGER) / DROP_SPAN, 0, 1);
-        child.visible = drop > 0.001 && t > 0 && p < 0.73;
-        if (t <= 0) return;
-        // Ease-out fall from off-screen to the piece's own rest height.
-        const ease = 1 - Math.pow(1 - t, 3);
-        let y = DROP_START_Y - ease * (DROP_START_Y - DROP_REST_Y[i]);
-        // Soft landing pat in the last stretch (returns exactly to rest).
-        const pat = THREE.MathUtils.clamp((t - 0.84) / 0.16, 0, 1);
-        y += Math.sin(pat * Math.PI) * 0.035 * (1 - pat);
-        child.position.y = y;
-        // A gentle tumble while airborne, then a calm, readable resting pose.
-        const spin = Math.max(0, 1 - t / 0.62);
-        child.rotation.set(
-          spin * DROP_TUMBLE[i][0],
-          DROP_YAW[i] * Math.min(1, t / 0.9),
-          spin * DROP_TUMBLE[i][1]
-        );
+        const local = THREE.MathUtils.clamp(drop * 1.6 - i * 0.09, 0, 1);
+        child.position.y = 2.3 - local * 1.15;
+        child.rotation.x = local * 5 + i;
+        child.rotation.z = local * 3.5;
       });
     }
 
@@ -155,16 +102,6 @@ export const Cooking: React.FC = () => {
     <>
       {/* ---- Cooking station ---- */}
       <group ref={station} scale={0.001}>
-        {/* Inner scale-up: the cooking vignette fills the frame and the
-            ingredients read clearly at camera distance. All rest heights and
-            ring slots live in this scaled space, so proportions are intact. */}
-        <group scale={1.22}>
-        {/* Island counter — the station stands on a warm wooden disc instead
-            of floating in a void, so the scene reads as a stovetop vignette */}
-        <mesh position={[0, -0.03, 0]} receiveShadow>
-          <cylinderGeometry args={[2.5, 2.65, 0.08, 56]} />
-          <meshPhysicalMaterial color="#2b2117" roughness={0.85} clearcoat={0.15} />
-        </mesh>
         {/* Stone slab cooktop */}
         <mesh position={[0, 0.06, 0]}>
           <boxGeometry args={[2.7, 0.12, 1.7]} />
@@ -209,20 +146,17 @@ export const Cooking: React.FC = () => {
         <pointLight ref={flameLight} position={[0, 0.35, 0.2]} intensity={0} distance={4.5} decay={1.7} color="#ff9a4a" />
         <EmberField position={[0, 0.45, 0]} window={[0.6, 0.625, 0.72, 0.775]} count={16} spread={0.75} rise={1.5} />
 
-        {/* Falling ingredients — five slots on a 60° ring, one piece each:
-            tomato chunks (sauce base), penne (the pasta that will be
-            plated), and one garlic bulb. Spacing 0.42 » piece sizes. */}
+        {/* Falling ingredients */}
         <group ref={drops}>
-          <TomatoChunk name="drop-0" position={[0.42, 2.6, 0]} />
-          <Penne name="drop-1" position={[0.21, 2.6, 0.364]} />
-          <Garlic name="drop-2" position={[-0.21, 2.6, 0.364]} scale={0.74} />
-          <Penne name="drop-3" position={[-0.21, 2.6, -0.364]} />
-          <TomatoChunk name="drop-4" position={[0.21, 2.6, -0.364]} />
+          <TomatoChunk position={[-0.25, 2.3, 0.05]} />
+          <TomatoChunk position={[0.2, 2.3, -0.12]} />
+          <TomatoChunk position={[0.02, 2.3, 0.18]} />
+          <Garlic position={[-0.05, 2.3, -0.05]} scale={0.7} />
+          <Garlic position={[0.32, 2.3, 0.1]} scale={0.6} />
         </group>
 
         <SteamEmitter position={[0, 0.5, 0]} window={[0.635, 0.66, 0.71, 0.78]} count={10} spread={0.5} rise={1.4} />
         <BasilPot position={[-0.95, 0.2, 0.55]} scale={0.8} />
-        </group>
       </group>
 
       {/* ---- The finished dish ---- */}

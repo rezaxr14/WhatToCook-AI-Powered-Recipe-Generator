@@ -36,9 +36,7 @@ const makeCanvasTexture = (
 const KitchenRoom: React.FC = () => {
   const room = useRef<THREE.Group>(null);
   const door = useRef<THREE.Group>(null);
-  const fridgeLight = useRef<THREE.PointLight>(null);
   const doorYawRef = useRef(0); // smoothed door yaw (no stepped scroll jumps)
-  const fridgeIRef = useRef(0); // smoothed interior light intensity
   const bulb1 = useRef<THREE.PointLight>(null);
   const bulb2 = useRef<THREE.PointLight>(null);
   const table = useRef<THREE.Group>(null);
@@ -129,13 +127,6 @@ const KitchenRoom: React.FC = () => {
     const doorYawT = -open * 1.95;
     doorYawRef.current += (doorYawT - doorYawRef.current) * ease;
     if (door.current) door.current.rotation.y = doorYawRef.current;
-
-    // Interior fridge light spills out with the door. Kept modest and wide
-    // (no hot spot on the walls) and fully on well before the shelf close-up,
-    // so the interior is rock-steady while the camera dwells on it.
-    const lightT = open * 2.2;
-    fridgeIRef.current += (lightT - fridgeIRef.current) * ease;
-    if (fridgeLight.current) fridgeLight.current.intensity = fridgeIRef.current;
 
     // Warm pendant pools of light — brighter once home again. Intentionally
     // ROCK-STEADY: any high-frequency intensity wobble reads as buzzing on
@@ -340,7 +331,7 @@ const KitchenRoom: React.FC = () => {
               the interior point light in a moving hot spot — the white
               "flicker" seen once the door opens. Rough matte paint washes
               evenly and stays below the bloom threshold. */}
-          <meshStandardMaterial color="#f0e8d9" emissive="#ffedc9" emissiveIntensity={0.12} roughness={0.95} metalness={0} side={THREE.BackSide} />
+          <meshStandardMaterial color="#f0e8d9" emissive="#ffedc9" emissiveIntensity={0.42} roughness={0.95} metalness={0} side={THREE.BackSide} />
         </mesh>
         {/* Shelves */}
         {[0.85, 1.7, 2.5].map((y) => (
@@ -391,7 +382,11 @@ const KitchenRoom: React.FC = () => {
           </mesh>
         </group>
 
-        <pointLight ref={fridgeLight} position={[0, 1.8, 0.4]} intensity={0} distance={5.5} decay={2.0} color="#ffedc9" />
+        {/* Interior light — deliberately STATIC (fixed intensity, no ref, no
+            per-frame writes). The old light ramped 0→2.2 with the door, so
+            scroll jitter in the opening band strobed it on/off — a bright
+            white flashing on the walls. A constant light can never switch. */}
+        <pointLight position={[0, 1.8, 0.3]} intensity={0.85} distance={4.2} decay={1.8} color="#ffedc9" />
       </group>
 
       {/* Scattered counter ingredients — the room feels used, alive */}
